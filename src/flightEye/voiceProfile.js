@@ -40,6 +40,8 @@ export const FLIGHT_EYE_VOICE_TOOLS = Object.freeze([
   'set_hud',
   'set_map_stack',
   // Situation
+  'get_metar',
+  'get_nearby_airports',
   'get_weather',
   'get_wind',
   'get_regional_brief',

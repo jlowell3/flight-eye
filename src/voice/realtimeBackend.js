@@ -10,6 +10,8 @@ export function createRealtimeBackend({
   // A trimmed build names its voice profile (server/providers/openai/
   // profiles.js) so the session is minted with that build's tools only.
   profile = globalThis.GEV_VOICE_PROFILE ?? null,
+  // Flight Eye names its voice persona (src/voice/personas.js) the same way.
+  persona = globalThis.GEV_VOICE_PERSONA ?? null,
   signal: lifetime,
 } = {}) {
   const scoped = (signal) =>
@@ -31,6 +33,7 @@ export function createRealtimeBackend({
       });
       if (authMode === 'oauth') query.set('auth', 'oauth');
       if (profile) query.set('profile', String(profile));
+      if (persona) query.set('persona', String(persona));
       const url = `${tokenEndpoint}${separator}${query}`;
       // Flight Eye: the phone shell sets window.FLIGHT_EYE_APP_KEY, which the
       // hosted server requires as X-FlightEye-App-Key (GEV_APP_KEY). Read per

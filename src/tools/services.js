@@ -77,6 +77,7 @@ export function createToolServices({ fetchImpl, appUrl, panelKey }) {
     infrastructure: createInfrastructureSource({ fetchImpl }),
     events: createEventPackSource({ fetchImpl }),
     regional: requests.regional,
+    aviation: requests.aviation,
     terrain: requests.terrain,
     summary: requests.summary,
     features: requests.features,

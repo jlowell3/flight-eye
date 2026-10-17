@@ -71,6 +71,66 @@ export function flightEyeViewerOptions({ matchMedia } = globalThis) {
 /** The detection density profile the build starts with. */
 export const FLIGHT_EYE_DETECTION_MODE = 'SPARSE';
 
+/** The voice persona the build starts with (src/voice/personas.js). */
+export const FLIGHT_EYE_DEFAULT_PERSONA = 'atc';
+export const FLIGHT_EYE_PERSONA_STORAGE_KEY = 'flightEye.voicePersona';
+export const FLIGHT_EYE_PERSONA_CYCLE = Object.freeze([
+  'atc',
+  'copilot',
+  'control',
+]);
+
+function personaStorage(storage) {
+  if (storage) return storage;
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** The persona the person chose, or the build's default. Never throws. */
+export function readFlightEyePersona(storage) {
+  try {
+    const raw = personaStorage(storage)?.getItem(
+      FLIGHT_EYE_PERSONA_STORAGE_KEY,
+    );
+    return FLIGHT_EYE_PERSONA_CYCLE.includes(raw)
+      ? raw
+      : FLIGHT_EYE_DEFAULT_PERSONA;
+  } catch {
+    return FLIGHT_EYE_DEFAULT_PERSONA;
+  }
+}
+
+/** Persist a persona choice; it applies to the next voice session. */
+export function writeFlightEyePersona(persona, storage) {
+  const resolved = FLIGHT_EYE_PERSONA_CYCLE.includes(persona)
+    ? persona
+    : FLIGHT_EYE_DEFAULT_PERSONA;
+  try {
+    personaStorage(storage)?.setItem(FLIGHT_EYE_PERSONA_STORAGE_KEY, resolved);
+  } catch {
+    /* best effort */
+  }
+  return resolved;
+}
+
+/** The persona after `current` in the menu's cycle. */
+export function nextFlightEyePersona(current) {
+  const index = FLIGHT_EYE_PERSONA_CYCLE.indexOf(current);
+  return FLIGHT_EYE_PERSONA_CYCLE[
+    (index + 1) % FLIGHT_EYE_PERSONA_CYCLE.length
+  ];
+}
+
+/** Menu labels for the personas. */
+export const FLIGHT_EYE_PERSONA_LABELS = Object.freeze({
+  atc: msg('VOICE: ATC'),
+  copilot: msg('VOICE: CO-PILOT'),
+  control: msg('VOICE: CONTROL'),
+});
+
 let pendingCatalog = null;
 
 /**

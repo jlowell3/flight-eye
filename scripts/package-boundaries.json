@@ -327,6 +327,7 @@
       "src/i18n/marker.js",
       "src/hudLayoutPolicy.js",
       "src/flightEye/voiceProfile.js",
+      "src/voice/personas.js",
       "server/providers/common/rate-limit.js",
       "server/providers/common/request.js",
       "server/providers/common/source-root.js",
@@ -1632,7 +1633,8 @@
       "src/i18n/locale.js",
       "src/i18n/locales/es.json",
       "src/i18n/locales/ru.json",
-      "src/ui/statusText.js"
+      "src/ui/statusText.js",
+      "src/voice/personas.js"
     ],
     "external": []
   },
@@ -2493,7 +2495,8 @@
       "src/layers/airQuality/index.js",
       "src/layers/airQuality/model.js",
       "src/layers/airQuality/source.js",
-      "src/ui/statusText.js"
+      "src/ui/statusText.js",
+      "src/voice/personas.js"
     ],
     "external": [
       "hls.js",

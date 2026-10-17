@@ -101,3 +101,39 @@ On a coarse pointer (or with `?ui=phone` on a desktop, for checks)
 
 Vite ignores `mobile/` and `dist-flight-eye/` in its watcher, so a Flutter
 build inside the checkout cannot crash the dev server.
+
+## The ATC and co-pilot voice personas
+
+Flight Eye's voice session carries a persona (`src/voice/personas.js`): the
+air traffic controller by default, a co-pilot, or the standard console
+voice. The phone menu's VOICE item cycles them; the choice is stored and
+applies to the next session.
+
+- **Minting.** The page sends `persona=<name>` with the token request
+  (`src/voice/realtimeBackend.js`, from `window.GEV_VOICE_PERSONA`). The
+  server prepends the persona's lines to the session instructions
+  (`server/providers/openai/instructions.js`) and speaks with its voice
+  (`OPENAI_REALTIME_VOICE_ATC`, `OPENAI_REALTIME_VOICE_COPILOT`; cedar and
+  marin unless set). Response-level instructions replace the session
+  instructions for that response in the Realtime API, so the browser
+  prepends the persona's preamble to every one (`realtimeTurns.js`).
+- **Both personas are simulations.** Their instructions say so, refuse to
+  give anything anyone could act on in a real aircraft, and say that this
+  is a simulation when asked whether they are real.
+- **The live picture.** While a session is active and an aircraft is
+  tracked, `src/flightEye/situation.js` pushes a `cockpit_situation` system
+  item every 15 seconds and whenever the session starts listening: the
+  tracked aircraft (callsign, type, altitude in feet and as a flight level,
+  heading, ground speed, vertical rate, squawk, route, phase of flight), the
+  nearest contacts with their bearing from the nose, clock position,
+  distance in nautical miles and altitude difference, the nearest airports
+  with runways and frequencies, and the latest METAR. The item carries data
+  only; it never asks the model to speak.
+- **Airports and METARs.** `server/providers/aviation.js` serves
+  `/api/airports/nearby` from the bundled OurAirports index
+  (`src/data/local_data/ourairports/`, public domain) and `/api/metar` from
+  NOAA's Aviation Weather Center (keyless, cached 60 s). The `get_metar` and
+  `get_nearby_airports` tools expose both to voice and MCP.
+- **Cost.** The build defaults the voice tier to mini on first launch; the
+  hosted server's daily mint cap and the OpenAI usage limit remain the
+  brakes.

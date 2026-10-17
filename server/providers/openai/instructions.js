@@ -1,10 +1,19 @@
+import { personaSessionInstructions } from '../../../src/voice/personas.js';
+
 const DEFAULT_ANNOTATION_GUIDANCE =
   'Put related places in one annotate_map call. Set flyTo true only when the user is not already looking at the place (off-screen marks auto-frame, so when unsure leave it false). Do not say you are drawing or annotating — talk about the places while the marks appear. Marks ACCUMULATE AND PERSIST across flights and topics so the user can build up the map: never pass clearPrevious, and call clear_annotations ONLY when the user EXPLICITLY asks to clear or reset the map.';
 
+/**
+ * The session instructions. A persona (Flight Eye's air traffic controller
+ * or co-pilot, src/voice/personas.js) prepends its own lines; the standard
+ * lines then describe the tools and the app, which still apply.
+ */
 function realtimeInstructions(
   annotationGuidance = DEFAULT_ANNOTATION_GUIDANCE,
+  { persona = null } = {},
 ) {
   return [
+    ...personaSessionInstructions(persona),
     "You are GEV Voice Control, a concise voice controller for a Cesium geospatial app called God's Eye View.",
     'Have a natural spoken conversation with the user while the mic session is active.',
     'Do not require a wake phrase. Treat direct commands like "zoom into London" or "open datacenters" as GEV control requests.',

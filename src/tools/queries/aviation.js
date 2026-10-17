@@ -4,10 +4,12 @@ import { suggestView } from '../views.js';
 import { defineTool, ToolError } from '../catalog.js';
 import {
   AREA_SCHEMA,
+  POINT_SCHEMA,
   areaCenter,
   areaContains,
   distanceKm,
   resolveArea,
+  resolvePoint,
 } from '../area.js';
 import {
   LIMIT_SCHEMA,
@@ -384,6 +386,149 @@ export const getAircraftInfo = defineTool({
     return {
       summary: `${summary.charAt(0).toUpperCase()}${summary.slice(1)}.`,
       data: { aircraft, route: flight },
+    };
+  },
+});
+
+const STATION_SCHEMA = Object.freeze({
+  type: 'string',
+  pattern: '^[A-Za-z0-9]{4}$',
+  description: 'ICAO station id, such as "KAUS".',
+});
+
+function describeMetar(metar) {
+  const parts = [];
+  if (metar.windDirectionDeg != null || metar.windKt != null) {
+    const dir =
+      metar.windDirectionDeg === 'VRB'
+        ? 'variable'
+        : metar.windDirectionDeg != null
+          ? `${String(metar.windDirectionDeg).padStart(3, '0')}°`
+          : 'unknown direction';
+    parts.push(
+      `wind ${dir} at ${metar.windKt ?? '?'} kt${metar.gustKt != null ? ` gusting ${metar.gustKt}` : ''}`,
+    );
+  }
+  if (metar.visibilitySm != null)
+    parts.push(`visibility ${metar.visibilitySm} sm`);
+  if (metar.clouds?.length)
+    parts.push(
+      `clouds ${metar.clouds
+        .map((layer) =>
+          layer.baseFt != null
+            ? `${layer.cover} ${layer.baseFt} ft`
+            : layer.cover,
+        )
+        .join(', ')}`,
+    );
+  if (metar.temperatureC != null)
+    parts.push(
+      `temperature ${metar.temperatureC}°C${metar.dewpointC != null ? ` dewpoint ${metar.dewpointC}°C` : ''}`,
+    );
+  if (metar.altimeterInHg != null)
+    parts.push(`altimeter ${metar.altimeterInHg.toFixed(2)} inHg`);
+  if (metar.flightCategory) parts.push(metar.flightCategory);
+  return parts.join(', ') || 'no decoded fields';
+}
+
+export const getMetar = defineTool({
+  name: 'get_metar',
+  title: 'METAR',
+  description:
+    'The latest METAR (aviation weather observation) for up to five ICAO ' +
+    'stations, decoded: wind, visibility, clouds, temperature, altimeter ' +
+    'and flight category, with the raw report. Use get_nearby_airports to ' +
+    'find a station id near a point.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      stations: {
+        type: 'array',
+        items: STATION_SCHEMA,
+        minItems: 1,
+        maxItems: 5,
+        description: 'ICAO station ids.',
+      },
+    },
+    required: ['stations'],
+    additionalProperties: false,
+  },
+  requires: ['aviation'],
+  async run(args, { services, signal }) {
+    const payload = await services.aviation.getMetar(args.stations, { signal });
+    const metars = Array.isArray(payload?.metars) ? payload.metars : [];
+    const stale = payload?.status === 'stale';
+    const missing = args.stations
+      .map((id) => id.toUpperCase())
+      .filter((id) => !metars.some((metar) => metar.icao === id));
+    const summary =
+      [
+        ...metars.map((metar) => `${metar.icao}: ${describeMetar(metar)}`),
+        missing.length ? `no report for ${missing.join(', ')}` : null,
+      ]
+        .filter(Boolean)
+        .join('. ') + (stale ? ' (data may be stale).' : '.');
+    return {
+      summary,
+      data: {
+        metars,
+        missing,
+        stale,
+        retrieved_at: payload?.retrievedAt ?? null,
+        source: payload?.source ?? null,
+      },
+    };
+  },
+});
+
+export const getNearbyAirports = defineTool({
+  name: 'get_nearby_airports',
+  title: 'Nearby airports',
+  description:
+    'The nearest airports to a point from the bundled OurAirports index ' +
+    '(large and medium airports, and small ones with scheduled service): ' +
+    'ICAO and IATA codes, distance and bearing, elevation, runways and ' +
+    'tower, ground, approach, ATIS and other frequencies.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      location: POINT_SCHEMA,
+      radiusKm: {
+        type: 'number',
+        minimum: 1,
+        maximum: 400,
+        description: 'Search radius in kilometres (default 80).',
+      },
+      limit: {
+        type: 'integer',
+        minimum: 1,
+        maximum: 20,
+        description: 'How many airports to return (default 5).',
+      },
+    },
+    required: ['location'],
+    additionalProperties: false,
+  },
+  requires: ['aviation'],
+  async run(args, { services, signal }) {
+    const point = await resolvePoint(args.location, { services, signal });
+    const payload = await services.aviation.nearbyAirports(
+      point.lat,
+      point.lon,
+      { radiusKm: args.radiusKm, limit: args.limit, signal },
+    );
+    const airports = Array.isArray(payload?.airports) ? payload.airports : [];
+    const named = airports
+      .slice(0, 3)
+      .map(
+        (airport) =>
+          `${airport.icao || airport.ident} ${airport.name} ${airport.distanceNm} nm at ${String(airport.bearingDeg).padStart(3, '0')}°`,
+      );
+    return {
+      summary: airports.length
+        ? `${countNoun(airports.length, 'airport')} within ${args.radiusKm ?? 80} km of ${point.label}: ${named.join('; ')}.`
+        : `No airports in the index within ${args.radiusKm ?? 80} km of ${point.label}.`,
+      data: { location: point, airports, source: payload?.source ?? null },
     };
   },
 });

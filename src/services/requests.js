@@ -24,6 +24,10 @@ export function createApplicationRequestServices({
     regional: '/api/regional-brief',
     weather: '/api/weather-effects',
     summary: '/api/openai/hud-summary',
+    // Flight Eye: METARs and the bundled airport index (server/providers/
+    // aviation.js), read by the ATC persona and the aviation tools.
+    metar: '/api/metar',
+    airports: '/api/airports/nearby',
     ...endpoints,
   };
   async function request(endpoint, { signal, ...init } = {}) {
@@ -171,6 +175,45 @@ export function createApplicationRequestServices({
         return requireOk(
           await request(pointUrl(urls.weather, latitude, longitude), options),
           'Weather',
+        );
+      },
+    },
+    aviation: {
+      /** The latest METARs for up to five ICAO station ids. */
+      async getMetar(ids, options) {
+        const list = (Array.isArray(ids) ? ids : [ids])
+          .map((id) =>
+            String(id ?? '')
+              .trim()
+              .toUpperCase(),
+          )
+          .filter(Boolean);
+        if (!list.length) throw new TypeError('A station id is required');
+        return requireOk(
+          await request(
+            `${urls.metar}?${new URLSearchParams({ ids: list.join(',') })}`,
+            options,
+          ),
+          'METAR',
+        );
+      },
+      /** The nearest bundled airports to a point, with runways and frequencies. */
+      async nearbyAirports(
+        latitude,
+        longitude,
+        { radiusKm, limit, ...options } = {},
+      ) {
+        const url = new URL(
+          pointUrl(urls.airports, latitude, longitude),
+          'http://localhost',
+        );
+        if (Number.isFinite(radiusKm))
+          url.searchParams.set('radiusKm', String(radiusKm));
+        if (Number.isFinite(limit))
+          url.searchParams.set('limit', String(limit));
+        return requireOk(
+          await request(`${url.pathname}${url.search}`, options),
+          'Nearby airports',
         );
       },
     },

@@ -19,6 +19,12 @@ import {
   nextVisualStyle,
   telemetrySummary,
 } from './phonePolicy.js';
+import {
+  FLIGHT_EYE_PERSONA_LABELS,
+  nextFlightEyePersona,
+  readFlightEyePersona,
+  writeFlightEyePersona,
+} from './composition.js';
 
 /** A finger's click travel limit, against the mouse's 6 px. */
 export const PHONE_TRACKING_TRAVEL_PX = 14;
@@ -47,6 +53,9 @@ const MENU_ITEMS = Object.freeze([
     icon: 'arrow_forward',
     button: 'share-btn',
   },
+  // The voice persona (controller, co-pilot, console); its label names the
+  // current one and a tap cycles to the next, for the next voice session.
+  { id: 'persona', label: msg('VOICE: ATC'), icon: 'radio' },
 ]);
 
 function element(doc, tag, attributes = {}, children = []) {
@@ -223,7 +232,10 @@ export function initPhoneShell({
     menuGrid.appendChild(
       element(doc, 'button', { type: 'button', 'data-menu': item.id }, [
         icon(doc, item.icon),
-        element(doc, 'span', { text: t(item.label) }),
+        element(doc, 'span', {
+          className: 'fe-menu-label',
+          text: t(item.label),
+        }),
       ]),
     );
   }
@@ -251,7 +263,15 @@ export function initPhoneShell({
   };
 
   const refreshMenu = () => {
+    const personaButton = menuGrid.querySelector('[data-menu="persona"]');
+    if (personaButton) {
+      personaButton.querySelector('.fe-menu-label').textContent = t(
+        FLIGHT_EYE_PERSONA_LABELS[readFlightEyePersona()],
+      );
+      personaButton.setAttribute('aria-pressed', 'false');
+    }
     for (const item of MENU_ITEMS) {
+      if (item.id === 'persona') continue;
       const target = item.button ? byId(item.button) : null;
       const pressed =
         item.id === 'layers'
@@ -376,6 +396,13 @@ export function initPhoneShell({
     share: () => {
       setMenuOpen(false);
       byId('share-btn')?.click();
+    },
+    persona: () => {
+      const next = writeFlightEyePersona(
+        nextFlightEyePersona(readFlightEyePersona()),
+      );
+      // The backend reads it when the next session is minted.
+      globalThis.GEV_VOICE_PERSONA = next;
     },
   };
 

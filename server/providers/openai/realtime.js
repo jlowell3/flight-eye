@@ -16,6 +16,11 @@ import { realtimeInstructions } from './instructions.js';
 import { GEV_REALTIME_TOOLS } from './tools.js';
 import { isVoiceProfile, toolsForVoiceProfile } from './profiles.js';
 import {
+  isVoicePersona,
+  personaVoice,
+  resolveVoicePersona,
+} from '../../../src/voice/personas.js';
+import {
   preferCodexOAuth,
   readCodexOAuthAccessToken,
   createCodexOAuthLogin,
@@ -176,6 +181,16 @@ function createRealtimeTokenHandler({
       res.end(JSON.stringify({ error: 'Unknown voice profile' }));
       return;
     }
+    // Voice persona (Flight Eye's controller or co-pilot), requested as
+    // ?persona=<name>; it prepends its lines to the instructions and picks
+    // the voice. Unknown names are refused.
+    const persona = query.get('persona') || null;
+    if (!isVoicePersona(persona)) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Unknown voice persona' }));
+      return;
+    }
     let sessionTools;
     try {
       sessionTools = toolsForVoiceProfile(tools, profile);
@@ -279,7 +294,9 @@ function createRealtimeTokenHandler({
           process.env.OPENAI_REALTIME_MODEL ||
           OPENAI_REALTIME_MODEL_DEFAULT;
     const voice =
-      process.env.OPENAI_REALTIME_VOICE || OPENAI_REALTIME_VOICE_DEFAULT;
+      personaVoice(persona, process.env) ||
+      process.env.OPENAI_REALTIME_VOICE ||
+      OPENAI_REALTIME_VOICE_DEFAULT;
     const effort =
       process.env.OPENAI_REALTIME_REASONING_EFFORT ||
       OPENAI_REALTIME_REASONING_DEFAULT;
@@ -334,7 +351,7 @@ function createRealtimeTokenHandler({
           },
           output: { voice },
         },
-        instructions: realtimeInstructions(annotationGuidance),
+        instructions: realtimeInstructions(annotationGuidance, { persona }),
         tools: sessionTools,
         tool_choice: 'auto',
       },
@@ -361,6 +378,7 @@ function createRealtimeTokenHandler({
       res.setHeader('X-GEV-Voice-Tier', tier);
       res.setHeader('X-GEV-Voice-Model', model);
       res.setHeader('X-GEV-Voice-Profile', profile || 'standard');
+      res.setHeader('X-GEV-Voice-Persona', resolveVoicePersona(persona));
       res.setHeader(
         'X-GEV-Voice-Auth',
         authMode === 'oauth' ? 'codex-oauth' : 'env',

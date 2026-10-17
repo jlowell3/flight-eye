@@ -2914,5 +2914,8 @@
   "Flight controls": "Controles de vuelo",
   "CLOSE": "CERRAR",
   "More controls": "Más controles",
-  "Release to send": "Suelta para enviar"
+  "Release to send": "Suelta para enviar",
+  "VOICE: ATC": "VOZ: ATC",
+  "VOICE: CO-PILOT": "VOZ: COPILOTO",
+  "VOICE: CONTROL": "VOZ: CONTROL"
 }

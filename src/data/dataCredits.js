@@ -101,6 +101,14 @@ export const NYC_DOT_DISCLAIMER =
 export const DATA_CREDITS = [
   // ── Live sources ────────────────────────────────────────────────
   {
+    key: 'awc-metar',
+    html: 'METARs: <a href="https://aviationweather.gov" target="_blank" rel="noopener">NOAA Aviation Weather Center</a> (public domain)',
+  },
+  {
+    key: 'ourairports',
+    html: 'Airports, runways and frequencies: <a href="https://ourairports.com/data/" target="_blank" rel="noopener">OurAirports</a> (public domain)',
+  },
+  {
     key: 'opensky',
     html:
       'Flights: OpenSky Network — Schäfer et al., ' +

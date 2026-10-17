@@ -447,3 +447,76 @@ test('altitude bands require a reported altitude from normalized OpenSky records
   });
   assert.equal(minimum.data.total, 3);
 });
+
+test('METARs are decoded per station and nearby airports come with runways and frequencies', async () => {
+  const calls = [];
+  const aviation = {
+    async getMetar(ids) {
+      calls.push(['metar', ids]);
+      return {
+        status: 'ready',
+        retrievedAt: '2026-10-18T01:00:00.000Z',
+        source: 'NOAA Aviation Weather Center',
+        metars: [
+          {
+            icao: 'KAUS',
+            raw: 'KAUS 180053Z 17012G20KT 10SM FEW045 28/19 A2992',
+            windDirectionDeg: 170,
+            windKt: 12,
+            gustKt: 20,
+            visibilitySm: 10,
+            clouds: [{ cover: 'FEW', baseFt: 4500 }],
+            temperatureC: 28,
+            dewpointC: 19,
+            altimeterInHg: 29.92,
+            flightCategory: 'VFR',
+          },
+        ],
+      };
+    },
+    async nearbyAirports(lat, lon, { radiusKm, limit }) {
+      calls.push(['airports', lat, lon, radiusKm, limit]);
+      return {
+        source: 'OurAirports',
+        airports: [
+          {
+            ident: 'KAUS',
+            icao: 'KAUS',
+            iata: 'AUS',
+            name: 'Austin Bergstrom International Airport',
+            distanceNm: 18.2,
+            bearingDeg: 180,
+            elevFt: 542,
+            runways: [{ id: '18R/36L', lengthFt: 12250 }],
+            frequencies: [{ type: 'TWR', mhz: 121 }],
+          },
+        ],
+      };
+    },
+  };
+  const catalog = composeCatalog({ tools: coreTools, services: { aviation } });
+  const metar = await catalog.call('get_metar', { stations: ['kaus', 'KSAT'] });
+  assert.deepEqual(calls[0], ['metar', ['kaus', 'KSAT']]);
+  assert.match(
+    metar.summary,
+    /^KAUS: wind 170° at 12 kt gusting 20, visibility 10 sm, clouds FEW 4500 ft, temperature 28°C dewpoint 19°C, altimeter 29.92 inHg, VFR\. no report for KSAT\.$/,
+  );
+  assert.deepEqual(metar.data.missing, ['KSAT']);
+  assert.equal(metar.data.stale, false);
+  assert.equal(metar.data.metars[0].icao, 'KAUS');
+
+  const near = await catalog.call('get_nearby_airports', {
+    location: { lat: 30.5, lon: -97.7 },
+    limit: 1,
+  });
+  assert.deepEqual(calls[1], ['airports', 30.5, -97.7, undefined, 1]);
+  assert.match(
+    near.summary,
+    /^1 airport within 80 km of 30\.5000, -97\.7000: KAUS Austin Bergstrom International Airport 18\.2 nm at 180°\.$/,
+  );
+  assert.equal(near.data.airports[0].frequencies[0].mhz, 121);
+  await assert.rejects(
+    catalog.call('get_metar', { stations: [] }),
+    /invalid|minItems|at least/i,
+  );
+});

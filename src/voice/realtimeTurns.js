@@ -11,6 +11,7 @@ import {
   parseArguments,
 } from './realtimeProtocol.js';
 import { narrationLabel } from './speech.js';
+import { personaResponsePreamble } from './personas.js';
 
 /** Out-of-band progress responses carry this metadata tag. */
 export const PROGRESS_RESPONSE_TAG = 'progress';
@@ -1022,8 +1023,14 @@ export class RealtimeTurns {
       });
       return;
     }
-    this.pendingResponseInstructions =
-      instructions || 'Briefly respond once. Do not repeat yourself.';
+    // A response-level instruction replaces the session instructions for
+    // that response, so a persona (Flight Eye) restates itself here.
+    this.pendingResponseInstructions = [
+      personaResponsePreamble(globalThis.GEV_VOICE_PERSONA),
+      instructions || 'Briefly respond once. Do not repeat yourself.',
+    ]
+      .filter(Boolean)
+      .join(' ');
     if (!this.responseActive && !this.responseCreatePending)
       this.flushPendingResponse();
   }

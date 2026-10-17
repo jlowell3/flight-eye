@@ -18,11 +18,27 @@ import {
   applyFlightEyeBranding,
   flightEyeViewerOptions,
   loadFlightEyeToolCatalog,
+  readFlightEyePersona,
 } from './composition.js';
 import { initPhoneShell } from './phoneShell.js';
+import { createSituationFeed } from './situation.js';
+import {
+  VOICE_TIER_STORAGE_KEY,
+  voiceStorage,
+  writeStoredVoiceTier,
+} from '../voice/realtimePreferences.js';
 
-// The voice backend reads the profile when it mints a session.
+// The voice backend reads the profile and persona when it mints a session.
 globalThis.GEV_VOICE_PROFILE = FLIGHT_EYE_VOICE_PROFILE;
+globalThis.GEV_VOICE_PERSONA = readFlightEyePersona();
+// The persona talks a lot; the mini voice tier is the build's default until
+// the person picks a tier themselves.
+try {
+  if (!voiceStorage()?.getItem(VOICE_TIER_STORAGE_KEY))
+    writeStoredVoiceTier('mini');
+} catch {
+  /* best effort */
+}
 applyFlightEyeBranding(document);
 
 const application = createStandaloneApplication({
@@ -62,6 +78,9 @@ application
     // The phone layer mounts on touch devices (or ?ui=phone) once the
     // shell exists; the defaults below may still be restoring.
     const phone = initPhoneShell({ application });
+    // The persona's live picture, pushed into the voice session while an
+    // aircraft is tracked.
+    createSituationFeed({ application });
     return startFlightEyeDefaults({ phone: Boolean(phone) });
   })
   .catch((error) => {

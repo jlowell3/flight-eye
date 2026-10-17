@@ -8,6 +8,8 @@ import {
   findAircraft,
   getAircraftInfo,
   getAircraftTrack,
+  getMetar,
+  getNearbyAirports,
 } from './queries/aviation.js';
 import { getWeatherMap, getWind } from './queries/atmosphere.js';
 import { findSubmarineCables } from './queries/cables.js';
@@ -91,6 +93,8 @@ export const coreTools = Object.freeze([
   findAircraft,
   getAircraftTrack,
   getAircraftInfo,
+  getMetar,
+  getNearbyAirports,
   vesselsInArea,
   findVessel,
   getVesselTrack,
