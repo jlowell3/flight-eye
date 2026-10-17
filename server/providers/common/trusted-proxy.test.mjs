@@ -5,6 +5,7 @@ import {
   firstForwarded,
   isTrustedProxy,
   parseTrustedProxies,
+  trustedProxyScheme,
 } from './trusted-proxy.js';
 
 const from = (remoteAddress, headers = {}) => ({
@@ -97,4 +98,29 @@ test('clientAddress is the socket address unless a trusted proxy forwarded one',
     'a trusted peer without the header is itself',
   );
   assert.equal(clientAddress(from(''), {}), '');
+});
+
+test('GEV_TRUSTED_PROXY=any trusts every connection, including a socket with no peer address', () => {
+  const env = { GEV_TRUSTED_PROXY: 'any' };
+  assert.equal(isTrustedProxy(from('10.0.0.5'), env), true);
+  assert.equal(isTrustedProxy(from(undefined), env), true, 'a Unix socket');
+  assert.equal(isTrustedProxy({}, env), true, 'no socket at all');
+  assert.equal(
+    isTrustedProxy(from('10.0.0.5'), { GEV_TRUSTED_PROXY: 'ANY, 127.0.0.1' }),
+    true,
+    'case-insensitive, alongside addresses',
+  );
+  assert.equal(
+    clientAddress(from(undefined, { 'x-forwarded-for': '203.0.113.9' }), env),
+    '203.0.113.9',
+  );
+  assert.equal(clientAddress(from(undefined), env), '', 'no header, no socket');
+});
+
+test('GEV_PROXY_SCHEME names the scheme a trusted proxy terminates', () => {
+  assert.equal(trustedProxyScheme({}), null);
+  assert.equal(trustedProxyScheme({ GEV_PROXY_SCHEME: 'https' }), 'https:');
+  assert.equal(trustedProxyScheme({ GEV_PROXY_SCHEME: ' HTTPS: ' }), 'https:');
+  assert.equal(trustedProxyScheme({ GEV_PROXY_SCHEME: 'http' }), 'http:');
+  assert.equal(trustedProxyScheme({ GEV_PROXY_SCHEME: 'ftp' }), null);
 });

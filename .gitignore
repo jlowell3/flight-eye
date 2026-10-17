@@ -11,6 +11,7 @@ dist-flight-eye
 !.env.example
 # The VPS template for /etc/flight-eye.env holds names and placeholders only.
 !deploy/.env.vps.example
+!deploy/.env.cpanel.example
 *.log
 screenshots/
 qa-shots/

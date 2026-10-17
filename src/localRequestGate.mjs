@@ -91,8 +91,11 @@ function requestAuthority(hostHeader, protocol) {
  * verified the socket peer is its own reverse proxy, so step 1 is skipped and
  * the forwarding headers describe the request instead — the scheme comes from
  * `X-Forwarded-Proto` and the authority from `X-Forwarded-Host` when present.
+ * `proxyScheme` (`https:` or `http:`, GEV_PROXY_SCHEME) is the scheme the
+ * trusted proxy terminates, used only when it sends no readable
+ * `X-Forwarded-Proto`; without either, the socket scheme stays.
  *
- * @param {{hostHeader?: string, protocol?: string, origin?: string, secFetchSite?: string, proxyHeaders?: Record<string,string>, trustedProxy?: boolean}} req
+ * @param {{hostHeader?: string, protocol?: string, origin?: string, secFetchSite?: string, proxyHeaders?: Record<string,string>, trustedProxy?: boolean, proxyScheme?: string|null}} req
  * @returns {{ok: true} | {ok: false, status: 403, error: string}}
  */
 export function admitSameSiteRequest({
@@ -102,6 +105,7 @@ export function admitSameSiteRequest({
   secFetchSite,
   proxyHeaders = {},
   trustedProxy = false,
+  proxyScheme = null,
 } = {}) {
   if (trustedProxy) {
     // Flight Eye: a declared reverse proxy (server/providers/common/
@@ -114,6 +118,8 @@ export function admitSameSiteRequest({
     const forwardedProto = first('x-forwarded-proto').toLowerCase();
     if (forwardedProto === 'http' || forwardedProto === 'https')
       protocol = `${forwardedProto}:`;
+    else if (proxyScheme === 'https:' || proxyScheme === 'http:')
+      protocol = proxyScheme;
     const forwardedHost = first('x-forwarded-host');
     if (forwardedHost) hostHeader = forwardedHost;
   } else if (hasProxySignals(proxyHeaders)) {

@@ -52,6 +52,9 @@ a systemd unit and a deploy script.
   traces rewritten into OpenSky's shape, never contacting OpenSky (whose
   licence is non-commercial). The default, `opensky`, is unchanged.
 - `GEV_ALLOWED_HOSTS` must name the public host the phone app loads.
+- Hosting: `deploy/README.md` (a VPS with Caddy and systemd) or
+  `deploy/CPANEL.md` (shared hosting with cPanel's Node app selector, through
+  `passenger.cjs`).
 - An OpenAI key enables voice; see `.env.example` for the rest.
 
 ## Upstream edits

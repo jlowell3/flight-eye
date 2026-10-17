@@ -1,5 +1,8 @@
 # Hosting Flight Eye on one small VPS
 
+> Shared hosting instead of a VPS (cPanel with "Setup Node.js App", as at
+> o2switch)? See [CPANEL.md](CPANEL.md); the settings below still apply.
+
 This folder is Phase 3 of `FLIGHT-EYE-PLAN.md`: the Flight Eye build served
 from a VPS behind Caddy, with the server-side brakes a public OpenAI-billed
 endpoint needs. One machine, no Docker:

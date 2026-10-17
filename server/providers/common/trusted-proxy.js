@@ -10,10 +10,18 @@
  * GEV_TRUSTED_PROXY names the proxy's socket addresses (comma-separated,
  * exact, e.g. `127.0.0.1,::1,::ffff:127.0.0.1`). Only a connection FROM one
  * of them has its forwarding headers believed; a `::ffff:` IPv4-mapped form
- * matches its plain address, as in keySetupCore's trusted peers. Unset, no
- * address is trusted and every caller behaves exactly as before. This module
- * imports nothing so it can sit in any package boundary.
+ * matches its plain address, as in keySetupCore's trusted peers. The value
+ * `any` trusts every connection: for shared hosting (cPanel's Passenger),
+ * where the app is reachable only through the host's own proxy, over a
+ * socket that reports no peer address at all. Unset, no address is trusted
+ * and every caller behaves exactly as before. GEV_PROXY_SCHEME (`https` or
+ * `http`) is the scheme the proxy terminates, used by the same-site gate
+ * when a trusted proxy sends no X-Forwarded-Proto. This module imports
+ * nothing so it can sit in any package boundary.
  */
+
+/** The GEV_TRUSTED_PROXY value that trusts every connection. */
+export const TRUST_ANY_PROXY = 'any';
 
 /** Normalize a socket address for comparison; '' when there is none. */
 function normalizeAddress(value) {
@@ -60,7 +68,23 @@ function trustedProxies(env) {
 export function isTrustedProxy(req, env = process.env) {
   const trusted = trustedProxies(env);
   if (trusted.size === 0) return false;
+  if (trusted.has(TRUST_ANY_PROXY)) return true;
   return trusted.has(normalizeAddress(req?.socket?.remoteAddress));
+}
+
+/**
+ * The scheme a trusted proxy terminates (GEV_PROXY_SCHEME), as `https:` or
+ * `http:`, or null when unset or unreadable. A fallback for proxies that send
+ * no X-Forwarded-Proto; one that does is always believed first.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {'https:'|'http:'|null}
+ */
+export function trustedProxyScheme(env = process.env) {
+  const value = String(env?.GEV_PROXY_SCHEME ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/:$/, '');
+  return value === 'https' || value === 'http' ? `${value}:` : null;
 }
 
 /** First comma-separated value of a header, trimmed; '' when absent. */

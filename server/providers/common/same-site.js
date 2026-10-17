@@ -1,5 +1,5 @@
 import { admitSameSiteRequest } from '../../../src/localRequestGate.mjs';
-import { isTrustedProxy } from './trusted-proxy.js';
+import { isTrustedProxy, trustedProxyScheme } from './trusted-proxy.js';
 
 /**
  * Cross-site request gate for cost-bearing and log endpoints. Feeds the
@@ -23,6 +23,9 @@ export function admitSameSite(req, res) {
     // Flight Eye hosting: a socket peer named in GEV_TRUSTED_PROXY has its
     // forwarding headers believed instead of refused (trusted-proxy.js).
     trustedProxy: isTrustedProxy(req),
+    // The scheme the proxy terminates, for proxies that do not say
+    // (GEV_PROXY_SCHEME; cPanel's Passenger among them).
+    proxyScheme: trustedProxyScheme(),
   });
   if (verdict.ok) return false;
   res.statusCode = verdict.status;
