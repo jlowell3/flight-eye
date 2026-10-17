@@ -1,4 +1,5 @@
 import { makeRateLimiter } from '../../../src/sources/rateLimit.js';
+import { clientAddress } from './trusted-proxy.js';
 export { makeRateLimiter } from '../../../src/sources/rateLimit.js';
 
 /**
@@ -56,7 +57,11 @@ export function makeCostRateLimiter(envValue, defaultPerMin) {
  * NOT trust X-Forwarded-For (client-controlled; a rotating value would mint fresh
  * quota and grow the limiter map). This is a localhost dev proxy, so the socket
  * address is the real client.
+ *
+ * Flight Eye hosting is the one exception: when the socket peer is a proxy
+ * named in GEV_TRUSTED_PROXY, the first X-Forwarded-For entry is the client
+ * (trusted-proxy.js), so phones behind Caddy stop sharing one bucket.
  */
 export function clientKey(req) {
-  return String(req.socket?.remoteAddress || 'local');
+  return String(clientAddress(req) || 'local');
 }

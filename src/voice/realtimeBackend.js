@@ -32,10 +32,20 @@ export function createRealtimeBackend({
       if (authMode === 'oauth') query.set('auth', 'oauth');
       if (profile) query.set('profile', String(profile));
       const url = `${tokenEndpoint}${separator}${query}`;
+      // Flight Eye: the phone shell sets window.FLIGHT_EYE_APP_KEY, which the
+      // hosted server requires as X-FlightEye-App-Key (GEV_APP_KEY). Read per
+      // request, since the shell injects it after the page loads; the
+      // standard app has no key and sends no header.
+      const appKey = globalThis.FLIGHT_EYE_APP_KEY;
+      const headers =
+        typeof appKey === 'string' && appKey
+          ? { 'X-FlightEye-App-Key': appKey }
+          : undefined;
       const response = await tokenTransport(url, {
         signal,
         cache: 'no-store',
         redirect: 'error',
+        ...(headers ? { headers } : {}),
       });
       signal.throwIfAborted();
       const data = await response.json().catch(() => null);

@@ -20,11 +20,20 @@ import {
   readCodexOAuthAccessToken,
   createCodexOAuthLogin,
 } from './codex-auth.js';
+// Flight Eye hosting: the daily mint cap and the proxy-aware client address.
+import {
+  dailyMintBudget,
+  enforceDailyMintCap,
+  mintBucket,
+} from './mint-budget.js';
+import { clientAddress } from '../common/trusted-proxy.js';
 
 const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 function isLoopbackRequest(req) {
-  return LOOPBACK_ADDRESSES.has(String(req.socket?.remoteAddress || ''));
+  // Behind a trusted proxy (GEV_TRUSTED_PROXY) the socket is always loopback;
+  // the forwarded address decides, so a phone cannot reach the OAuth paths.
+  return LOOPBACK_ADDRESSES.has(String(clientAddress(req) || ''));
 }
 
 function isSameOriginRequest(req) {
@@ -137,6 +146,9 @@ function createRealtimeTokenHandler({
   environment = process.env,
   models = {},
   tools = GEV_REALTIME_TOOLS,
+  // Flight Eye: the daily mint budget; undefined reads GEV_VOICE_DAILY_MINTS
+  // on first request, null turns the cap off, an object is used as given.
+  mintBudget,
 } = {}) {
   return async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -198,6 +210,11 @@ function createRealtimeTokenHandler({
 
     // Per-IP throttle (GEV_RATELIMIT_OPENAI_PER_MIN). On by default; 0 disables.
     if (!enforceRateLimit(openAiRateLimiter(), req, res)) return;
+    // Flight Eye spend brake (GEV_VOICE_DAILY_MINTS): successful mints per UTC
+    // day per app key or client address. Off unless set (mint-budget.js).
+    const budget = mintBudget === undefined ? dailyMintBudget() : mintBudget;
+    const bucket = budget ? mintBucket(req) : null;
+    if (!enforceDailyMintCap(budget, bucket, res)) return;
 
     let bearer;
     if (authMode === 'oauth') {
@@ -366,6 +383,7 @@ function createRealtimeTokenHandler({
         'Content-Type',
         response.headers.get('content-type') || 'application/json',
       );
+      if (budget) budget.record(bucket); // Flight Eye: a successful mint
       res.end(body);
     } catch {
       // For a network fault this was a resolver message naming the upstream

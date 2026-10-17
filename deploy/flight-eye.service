@@ -1,0 +1,49 @@
+# Flight Eye: systemd unit for `npm run serve:flight-eye` (FLIGHT-EYE-PLAN.md,
+# Phase 3). Install as /etc/systemd/system/flight-eye.service, then
+#   systemctl daemon-reload && systemctl enable --now flight-eye
+#
+# Expects: a `flight-eye` system user owning the checkout at /opt/flight-eye,
+# Node 24 with npm at /usr/bin (package.json "engines"), the settings file
+# /etc/flight-eye.env (copied from .env.vps.example, root:flight-eye, 0640)
+# and a finished `npm run build:flight-eye` (deploy.sh does that part).
+
+[Unit]
+Description=Flight Eye web server (God's Eye View aircraft build)
+Documentation=https://github.com/bilawalsidhu/gods-eye-view
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=flight-eye
+Group=flight-eye
+WorkingDirectory=/opt/flight-eye
+# Defaults the settings file may override. Loopback only: Caddy is the only
+# client. The checkout's own .env, if any, fills in whatever is still unset.
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=4173
+EnvironmentFile=/etc/flight-eye.env
+# npm wants a home and a cache; keep both in the unit's state directory
+# (/var/lib/flight-eye) instead of the checkout.
+StateDirectory=flight-eye
+Environment=HOME=/var/lib/flight-eye
+Environment=npm_config_cache=/var/lib/flight-eye/npm-cache
+Environment=npm_config_update_notifier=false
+ExecStart=/usr/bin/npm run serve:flight-eye
+Restart=on-failure
+RestartSec=5
+
+# Keep the process boxed in: no new privileges, a private /tmp, and the file
+# system read-only except the checkout (the server writes .gev-cache and
+# .gev-logs under it) and the state directory above.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/flight-eye
+ProtectKernelTunables=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

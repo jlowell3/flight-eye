@@ -1,0 +1,25 @@
+# Flight Eye: Caddy in front of the Node server (FLIGHT-EYE-PLAN.md, Phase 3).
+# Install as /etc/caddy/Caddyfile and `systemctl reload caddy`.
+#
+# Replace flight-eye.example.com with the subdomain that points at this VPS.
+# Caddy obtains and renews the certificate itself (Let's Encrypt, ZeroSSL as
+# the fallback) once the name resolves here and ports 80 and 443 are open.
+#
+# reverse_proxy passes the browser's Host header through unchanged and adds
+# X-Forwarded-For, X-Forwarded-Proto and X-Forwarded-Host. The Node server
+# believes those only from the addresses in GEV_TRUSTED_PROXY, and answers
+# only the host named in GEV_ALLOWED_HOSTS (see .env.vps.example).
+
+flight-eye.example.com {
+	encode zstd gzip
+
+	header {
+		# A year of HTTPS-only for this name; drop Caddy's own banner.
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	# `npm run serve:flight-eye` on loopback (HOST and PORT in /etc/flight-eye.env).
+	reverse_proxy 127.0.0.1:4173
+}

@@ -17,7 +17,9 @@ decisions, is `FLIGHT-EYE-PLAN.md` at the repository root.
 
 The served build is the page at `/` plus the same `/api` routes as the
 standard app, through Vite's preview server. A reverse proxy in front of it
-needs the trusted-proxy handling described in the plan's hosting phase.
+needs `GEV_TRUSTED_PROXY`, and a public server wants `GEV_APP_KEY` and
+`GEV_VOICE_DAILY_MINTS`; `deploy/README.md` covers all three with a Caddyfile,
+a systemd unit and a deploy script.
 
 ## How the build is composed
 

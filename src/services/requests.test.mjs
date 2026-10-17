@@ -94,3 +94,26 @@ test('a failed probe is retried after its backoff, not on every query', async ()
     'GET /api/overpass/status',
   ]);
 });
+
+test('the HUD summary request carries the Flight Eye app key only while the page global holds one', async () => {
+  const inits = [];
+  const services = createApplicationRequestServices({
+    fetchImpl: async (url, init) => {
+      inits.push(init);
+      return Response.json({ summary: 'fixture' });
+    },
+  });
+  await services.summary.summarize({ place: 'fixture' });
+  assert.deepEqual(inits[0].headers, { 'Content-Type': 'application/json' }, 'the standard app sends no key');
+  globalThis.FLIGHT_EYE_APP_KEY = 'k3y';
+  try {
+    await services.summary.summarize({ place: 'fixture' });
+    globalThis.FLIGHT_EYE_APP_KEY = '';
+    await services.summary.summarize({ place: 'fixture' });
+  } finally {
+    delete globalThis.FLIGHT_EYE_APP_KEY;
+  }
+  assert.deepEqual(inits[1].headers, { 'Content-Type': 'application/json', 'X-FlightEye-App-Key': 'k3y' });
+  assert.deepEqual(inits[2].headers, { 'Content-Type': 'application/json' }, 'an empty string is no key');
+  assert.equal(inits[1].body, '{"place":"fixture"}');
+});

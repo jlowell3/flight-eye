@@ -105,3 +105,67 @@ test('a missing Host with a present Origin is refused (no authority to match)', 
 test('a foreign Host is refused when an Origin is present', () => {
   assert.equal(admitSameSiteRequest({ ...same, hostHeader: 'evil.example:4173' }).ok, false, 'foreign Host does not match local Origin');
 });
+
+// Flight Eye hosting (GEV_TRUSTED_PROXY): the caller vouches for the socket
+// peer with `trustedProxy`, and the forwarding headers then describe the
+// request instead of refusing it. Caddy's defaults in front of the preview
+// server add X-Forwarded-For, X-Forwarded-Proto and X-Forwarded-Host and pass
+// the browser's Host and Origin through unchanged.
+const caddy = {
+  hostHeader: 'flight-eye.example',
+  protocol: 'http:', // the proxy connects over plain HTTP on loopback
+  origin: 'https://flight-eye.example',
+  secFetchSite: 'same-origin',
+  proxyHeaders: {
+    'x-forwarded-for': '203.0.113.9',
+    'x-forwarded-proto': 'https',
+    'x-forwarded-host': 'flight-eye.example',
+  },
+};
+
+test('a Caddy-style request is refused unless the caller trusts the proxy', () => {
+  const r = admitSameSiteRequest(caddy);
+  assert.equal(r.ok, false, 'today: forwarding headers mean not local');
+  assert.equal(r.status, 403);
+  assert.equal(admitSameSiteRequest({ ...caddy, trustedProxy: false }).ok, false);
+});
+
+test('behind a trusted proxy the scheme comes from X-Forwarded-Proto, so the https Origin matches', () => {
+  assert.equal(admitSameSiteRequest({ ...caddy, trustedProxy: true }).ok, true);
+  // The socket scheme alone would never match an https Origin.
+  const noProto = { ...caddy, trustedProxy: true, proxyHeaders: { 'x-forwarded-for': '203.0.113.9' } };
+  assert.equal(admitSameSiteRequest(noProto).ok, false, 'without X-Forwarded-Proto the socket scheme (http) stays');
+  // A proxy that says http while the Origin says https is still a mismatch.
+  const plain = { ...caddy, trustedProxy: true, proxyHeaders: { ...caddy.proxyHeaders, 'x-forwarded-proto': 'http' } };
+  assert.equal(admitSameSiteRequest(plain).ok, false);
+  // Multi-hop lists use the first (client-facing) value.
+  const chained = { ...caddy, trustedProxy: true, proxyHeaders: { ...caddy.proxyHeaders, 'x-forwarded-proto': 'https, http' } };
+  assert.equal(admitSameSiteRequest(chained).ok, true);
+  // An unreadable value falls back to the socket scheme rather than admitting.
+  const junk = { ...caddy, trustedProxy: true, proxyHeaders: { ...caddy.proxyHeaders, 'x-forwarded-proto': 'ftp' } };
+  assert.equal(admitSameSiteRequest(junk).ok, false);
+});
+
+test('behind a trusted proxy X-Forwarded-Host, when present, is the authority', () => {
+  // A proxy that rewrites Host to its upstream still carries the public name.
+  const rewritten = { ...caddy, trustedProxy: true, hostHeader: '127.0.0.1:4173' };
+  assert.equal(admitSameSiteRequest(rewritten).ok, true);
+  // Without X-Forwarded-Host the Host header is used as before.
+  const hostOnly = { ...caddy, trustedProxy: true, proxyHeaders: { 'x-forwarded-for': '203.0.113.9', 'x-forwarded-proto': 'https' } };
+  assert.equal(admitSameSiteRequest(hostOnly).ok, true);
+  assert.equal(admitSameSiteRequest({ ...hostOnly, hostHeader: '127.0.0.1:4173' }).ok, false, 'a rewritten Host without X-Forwarded-Host cannot match');
+});
+
+test('trusting the proxy relaxes nothing else', () => {
+  const trusted = { ...caddy, trustedProxy: true };
+  assert.equal(admitSameSiteRequest({ ...trusted, origin: 'https://evil.example' }).ok, false, 'cross-origin');
+  assert.equal(admitSameSiteRequest({ ...trusted, origin: 'null' }).ok, false, 'opaque origin');
+  assert.equal(admitSameSiteRequest({ ...trusted, secFetchSite: 'cross-site' }).ok, false, 'cross-site fetch metadata');
+  assert.equal(admitSameSiteRequest({ ...trusted, origin: 'http://flight-eye.example' }).ok, false, 'scheme downgrade in Origin');
+});
+
+test('a trusted proxy connection with no forwarding headers is an ordinary local request', () => {
+  // The operator's own curl against the backend port, from loopback.
+  assert.equal(admitSameSiteRequest({ ...same, trustedProxy: true }).ok, true);
+  assert.equal(admitSameSiteRequest({ hostHeader: 'localhost:4173', protocol: 'http:', trustedProxy: true }).ok, true);
+});

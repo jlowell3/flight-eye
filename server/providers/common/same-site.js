@@ -1,4 +1,5 @@
 import { admitSameSiteRequest } from '../../../src/localRequestGate.mjs';
+import { isTrustedProxy } from './trusted-proxy.js';
 
 /**
  * Cross-site request gate for cost-bearing and log endpoints. Feeds the
@@ -19,6 +20,9 @@ export function admitSameSite(req, res) {
     origin: req.headers?.origin,
     secFetchSite: req.headers?.['sec-fetch-site'],
     proxyHeaders: req.headers || {},
+    // Flight Eye hosting: a socket peer named in GEV_TRUSTED_PROXY has its
+    // forwarding headers believed instead of refused (trusted-proxy.js).
+    trustedProxy: isTrustedProxy(req),
   });
   if (verdict.ok) return false;
   res.statusCode = verdict.status;

@@ -179,3 +179,33 @@ test('a voice profile rides on the token request, from the option or the page gl
     'the page global names the profile for the default backend',
   );
 });
+
+test('the Flight Eye app key rides on the token request only while the page global holds one', async () => {
+  const inits = [];
+  const tokenTransport = async (input, init) => {
+    inits.push(init);
+    return tokenReply();
+  };
+  const backend = createRealtimeBackend({ tokenTransport });
+  await backend.requestToken();
+  assert.equal(inits[0].headers, undefined, 'the standard app sends no header');
+  globalThis.FLIGHT_EYE_APP_KEY = 'k3y';
+  try {
+    await backend.requestToken();
+    globalThis.FLIGHT_EYE_APP_KEY = '';
+    await backend.requestToken();
+    globalThis.FLIGHT_EYE_APP_KEY = 42;
+    await backend.requestToken();
+  } finally {
+    delete globalThis.FLIGHT_EYE_APP_KEY;
+  }
+  assert.deepEqual(
+    inits[1].headers,
+    { 'X-FlightEye-App-Key': 'k3y' },
+    'read per request, after the shell injects it',
+  );
+  assert.equal(inits[2].headers, undefined, 'an empty string is no key');
+  assert.equal(inits[3].headers, undefined, 'only a string counts');
+  assert.equal(inits[1].redirect, 'error');
+  assert.equal(inits[1].cache, 'no-store');
+});

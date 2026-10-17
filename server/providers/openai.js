@@ -7,6 +7,7 @@ import {
   createRealtimeTokenHandler,
 } from './openai/realtime.js';
 import { sameSiteGated } from './common/same-site.js';
+import { appKeyGated } from './common/app-key.js';
 import { createCodexOAuthLogin } from './openai/codex-auth.js';
 
 /**
@@ -23,8 +24,13 @@ function openAiRealtimeProxy({
   const oauthLogin = createCodexOAuthLogin(realtime);
   function install(middlewares) {
     // Cost-bearing and log endpoints refuse cross-site browser requests
-    // (see server/providers/common/same-site.js and SECURITY.md).
-    middlewares.use('/api/openai/hud-summary', sameSiteGated(handleHudSummary));
+    // (see server/providers/common/same-site.js and SECURITY.md). The two
+    // OpenAI-billed routes also require the Flight Eye app key when
+    // GEV_APP_KEY is set (server/providers/common/app-key.js).
+    middlewares.use(
+      '/api/openai/hud-summary',
+      sameSiteGated(appKeyGated(handleHudSummary)),
+    );
 
     middlewares.use(
       '/api/realtime/debug-log',
@@ -34,7 +40,9 @@ function openAiRealtimeProxy({
     middlewares.use(
       '/api/realtime/token',
       sameSiteGated(
-        createRealtimeTokenHandler({ ...realtime, annotationGuidance }),
+        appKeyGated(
+          createRealtimeTokenHandler({ ...realtime, annotationGuidance }),
+        ),
       ),
     );
 

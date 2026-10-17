@@ -176,10 +176,19 @@ export function createApplicationRequestServices({
     },
     summary: {
       async summarize(context, { signal } = {}) {
+        // Flight Eye: the phone shell sets window.FLIGHT_EYE_APP_KEY, which
+        // the hosted server requires as X-FlightEye-App-Key (GEV_APP_KEY).
+        // Read per request; the standard app has no key and sends no header.
+        const appKey = globalThis.FLIGHT_EYE_APP_KEY;
         return request(urls.summary, {
           method: 'POST',
           signal,
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(typeof appKey === 'string' && appKey
+              ? { 'X-FlightEye-App-Key': appKey }
+              : {}),
+          },
           body: JSON.stringify(context),
         });
       },

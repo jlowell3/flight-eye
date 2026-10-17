@@ -87,7 +87,12 @@ function requestAuthority(hostHeader, protocol) {
  *  4. otherwise ok. Non-browser loopback tools and the LAN opt-in (which may
  *     carry neither `Origin` nor `Sec-Fetch-Site`) pass here.
  *
- * @param {{hostHeader?: string, protocol?: string, origin?: string, secFetchSite?: string, proxyHeaders?: Record<string,string>}} req
+ * `trustedProxy` (Flight Eye hosting, GEV_TRUSTED_PROXY): the caller has
+ * verified the socket peer is its own reverse proxy, so step 1 is skipped and
+ * the forwarding headers describe the request instead — the scheme comes from
+ * `X-Forwarded-Proto` and the authority from `X-Forwarded-Host` when present.
+ *
+ * @param {{hostHeader?: string, protocol?: string, origin?: string, secFetchSite?: string, proxyHeaders?: Record<string,string>, trustedProxy?: boolean}} req
  * @returns {{ok: true} | {ok: false, status: 403, error: string}}
  */
 export function admitSameSiteRequest({
@@ -96,10 +101,24 @@ export function admitSameSiteRequest({
   origin,
   secFetchSite,
   proxyHeaders = {},
+  trustedProxy = false,
 } = {}) {
-  // (1) A request carrying reverse-proxy / CDN forwarding headers did not
-  // originate on this machine, whatever its socket says.
-  if (hasProxySignals(proxyHeaders)) {
+  if (trustedProxy) {
+    // Flight Eye: a declared reverse proxy (server/providers/common/
+    // trusted-proxy.js) terminated TLS, so its headers carry the scheme and
+    // host the browser used; the socket only ever says `http:` and loopback.
+    const first = (name) =>
+      String(proxyHeaders[name] || '')
+        .split(',')[0]
+        .trim();
+    const forwardedProto = first('x-forwarded-proto').toLowerCase();
+    if (forwardedProto === 'http' || forwardedProto === 'https')
+      protocol = `${forwardedProto}:`;
+    const forwardedHost = first('x-forwarded-host');
+    if (forwardedHost) hostHeader = forwardedHost;
+  } else if (hasProxySignals(proxyHeaders)) {
+    // (1) A request carrying reverse-proxy / CDN forwarding headers did not
+    // originate on this machine, whatever its socket says.
     return {
       ok: false,
       status: 403,
