@@ -1,6 +1,6 @@
 # Flight Eye — build plan (Route A)
 
-Status: draft for approval, 2026-10-17.
+Status: approved 2026-10-17. Phases 0 and 1 are complete (commit ec26395 on branch `flight-eye`); see docs/FLIGHT-EYE.md for how to run the build.
 Source: `gods-eye-view-main/` (upstream God's Eye View 0.2.1, MIT, Bilawal Sidhu).
 
 ## 1. What we are building
