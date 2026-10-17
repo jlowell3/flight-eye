@@ -1,0 +1,312 @@
+/* Flight Eye phone layer (body.ui-phone, set by src/flightEye/phoneShell.js
+   on coarse pointers): a bottom action bar, a telemetry sheet for the
+   tracked aircraft, contact filter chips in Contacts and Cockpit, and a menu
+   sheet for the controls that live behind keyboard shortcuts on a desktop.
+   Desktop chrome the bar replaces is hidden; what stays is lifted above it.
+
+   The bottom stack, from the bottom: the action bar, the command dock (mic
+   and search), the filter chips, the telemetry sheet. The attribution line
+   moves under the title so it stays visible above all of it. */
+
+body.ui-phone {
+  --fe-bar-height: 64px;
+  --fe-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --fe-bar-space: calc(var(--fe-bar-height) + var(--fe-safe-bottom));
+  --fe-dock-height: 64px;
+  --fe-dock-space: calc(var(--fe-bar-space) + 8px + var(--fe-dock-height));
+  --fe-ink: #d7f4ff;
+  --fe-dim: rgba(215, 244, 255, 0.55);
+  --fe-line: rgba(0, 246, 255, 0.28);
+  --fe-accent: #00f6ff;
+  --fe-panel: rgba(8, 12, 20, 0.94);
+}
+
+/* Desktop chrome the bar and menu replace. The right rail carries the
+   DISPLAY and Global Context panels, whose actions the bar and menu offer. */
+body.ui-phone #control-panel,
+body.ui-phone #cockpit-entry,
+body.ui-phone #view-switcher,
+body.ui-phone #corner-actions,
+body.ui-phone #style-indicator,
+body.ui-phone #title-bar .subtitle,
+body.ui-phone #right-context-rail,
+body.ui-phone .hud-bottom-bar {
+  display: none !important;
+}
+
+/* The HUD's bottom corners (MGRS, coordinates) would sit under the stack;
+   the telemetry sheet and the HUD's top carry what a phone needs. */
+body.ui-phone .hud-bottom-left,
+body.ui-phone .hud-bottom-right {
+  display: none !important;
+}
+
+/* What stays is lifted above the bar. */
+body.ui-phone #command-dock {
+  bottom: calc(var(--fe-bar-space) + 8px);
+}
+/* The attribution line moves under the title. The dock stylesheets pin it
+   to the bottom through a body:has(#intel-hud…) selector whose specificity
+   no plain selector reaches, so these declarations are important. */
+body.ui-phone #cesium-credits {
+  /* Cesium anchors its row to this box's bottom edge: the row reads 56–84px,
+     under the title row and above the HUD's top-left block. */
+  top: 84px !important;
+  bottom: auto !important;
+  left: 16px !important;
+  right: auto !important;
+  text-align: left !important;
+  z-index: 200;
+}
+/* The loading pill and the panel stack step down past the attribution row
+   and the HUD's top-left block. */
+body.ui-phone #global-loading-status {
+  top: 122px;
+}
+body.ui-phone #left-panel-stack {
+  top: 156px;
+}
+body.ui-phone.cockpit-mode .cockpit-utility-controls {
+  bottom: calc(var(--fe-dock-space) + 52px);
+}
+
+/* Stacking: the command dock sits at 145, so the phone layer sits above it. */
+#fe-action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 150;
+  display: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 6px 8px calc(6px + var(--fe-safe-bottom));
+  background: var(--fe-panel);
+  border-top: 1px solid var(--fe-line);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+body.ui-phone #fe-action-bar {
+  display: grid;
+}
+#fe-action-bar button {
+  min-height: 48px;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fe-ink);
+  font: inherit;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+#fe-action-bar button .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+}
+#fe-action-bar button[aria-pressed='true'] {
+  border-color: var(--fe-line);
+  color: var(--fe-accent);
+}
+#fe-action-bar button:disabled {
+  color: var(--fe-dim);
+  opacity: 0.45;
+}
+
+/* Contact filter chips, shown in Contacts and Cockpit. */
+#fe-chips {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--fe-dock-space) + 6px);
+  z-index: 149;
+  display: none;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+#fe-chips::-webkit-scrollbar {
+  display: none;
+}
+body.ui-phone #fe-chips[data-visible='true'] {
+  display: flex;
+}
+#fe-chips button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--fe-line);
+  border-radius: 18px;
+  background: var(--fe-panel);
+  color: var(--fe-ink);
+  font: inherit;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+#fe-chips button[aria-pressed='true'] {
+  background: rgba(0, 246, 255, 0.16);
+  color: var(--fe-accent);
+}
+
+/* The telemetry sheet for the tracked aircraft (hidden in Cockpit, whose
+   HUD carries the same readouts). */
+#fe-telemetry {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--fe-dock-space) + 6px);
+  z-index: 149;
+  display: none;
+  padding: 8px 12px;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  background: var(--fe-panel);
+  color: var(--fe-ink);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+body.ui-phone #fe-telemetry[data-visible='true'] {
+  display: block;
+}
+body.ui-phone
+  #fe-chips[data-visible='true']
+  ~ #fe-telemetry[data-visible='true'] {
+  bottom: calc(var(--fe-dock-space) + 50px);
+}
+body.ui-phone.cockpit-mode #fe-telemetry {
+  display: none !important;
+}
+#fe-telemetry .fe-telemetry-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+#fe-telemetry .fe-telemetry-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+#fe-telemetry .fe-telemetry-subtitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--fe-dim);
+}
+#fe-telemetry .fe-telemetry-emergency {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #ff5a5a;
+}
+#fe-telemetry .fe-telemetry-readouts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 10px;
+  margin: 6px 0 0;
+}
+#fe-telemetry[data-expanded='false']
+  .fe-telemetry-readouts
+  > :nth-child(n + 4) {
+  display: none;
+}
+#fe-telemetry .fe-telemetry-readouts dt {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--fe-dim);
+}
+#fe-telemetry .fe-telemetry-readouts dd {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+#fe-telemetry[data-stale='true'] .fe-telemetry-readouts dd {
+  color: var(--fe-dim);
+}
+
+/* The menu sheet. */
+#fe-menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 152;
+  display: none;
+  padding: 10px 12px calc(12px + var(--fe-safe-bottom));
+  border-top: 1px solid var(--fe-line);
+  border-radius: 16px 16px 0 0;
+  background: var(--fe-panel);
+  color: var(--fe-ink);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+body.ui-phone #fe-menu[data-open='true'] {
+  display: block;
+}
+#fe-menu .fe-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+#fe-menu button {
+  min-height: 56px;
+  border: 1px solid var(--fe-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fe-ink);
+  font: inherit;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+#fe-menu button .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+}
+#fe-menu button[aria-pressed='true'] {
+  background: rgba(0, 246, 255, 0.16);
+  color: var(--fe-accent);
+}
+#fe-menu .fe-menu-close {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 44px;
+}
+#fe-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 151;
+  display: none;
+  background: rgba(0, 0, 0, 0.45);
+}
+body.ui-phone #fe-scrim[data-open='true'] {
+  display: block;
+}
+
+/* Hold-to-talk: the voice button is also a push-to-talk key on touch. */
+body.ui-phone #gev-voice-button {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

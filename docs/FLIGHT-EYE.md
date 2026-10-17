@@ -62,3 +62,40 @@ a `hiddenLayerIds` set on the layer lifecycle, render options on
 server-side filter, and the `FLIGHTS_PROVIDER` switch in the aircraft
 proxies. `scripts/check-import-directions.mjs` and
 `scripts/package-boundaries.json` know the new entry and shared modules.
+
+## The phone layer
+
+On a coarse pointer (or with `?ui=phone` on a desktop, for checks)
+`src/flightEye/phoneShell.js` mounts the phone layer; its decisions live in
+`src/flightEye/phonePolicy.js` and its styles in `src/flightEye/phone.css`.
+
+- **Action bar** at the bottom: Prev and Next step through the Contacts
+  roster (through `controlCockpit`), Focus flies to the current contact and
+  becomes Untrack while one is tracked, Cockpit enters and exits, Sensor
+  cycles the visual styles (and the cockpit's vision modes inside the
+  cockpit), and Menu opens a sheet with HUD, Detect, 3D models, Layers,
+  Globe and Share, each driving the desktop control of the same name.
+- **Filter chips** (All, Airliners, Helicopters, Military) choose what Prev
+  and Next step through; they use the existing `aircraftClass` and
+  `targetLayer` navigation options.
+- **Telemetry sheet** above the dock for the tracked aircraft: callsign,
+  type and operator, altitude in feet, ground speed in knots, heading,
+  vertical rate, squawk, route and any emergency broadcast, refreshed every
+  second from the layer's `getTrackedInfo`. Tap it to show every readout.
+  It hides in the cockpit, whose HUD carries the same readouts.
+- **Hold to talk**: holding the voice button past the Space delay claims
+  the microphone exactly as a held Space does (`bindPushToTalkPointer` on
+  the voice input); the release mutes it, and a tap still toggles the
+  session.
+- **Back gesture**: the shell calls `window.flightEyeBack()`, which closes
+  the menu, collapses the sheet, exits the cockpit or closes the layers
+  panel, in that order, and returns false when nothing was open so the shell
+  may leave the app.
+- **Layout**: the command dock (mic and search) sits above the bar, the
+  chips and sheet above that, the attribution line moves under the title,
+  the HUD starts in its minimal layout, and the right rail, HUD bottom
+  strip and desktop-only chrome are hidden. Click travel tolerance for
+  selecting an aircraft widens from 6 to 14 pixels on touch.
+
+Vite ignores `mobile/` and `dist-flight-eye/` in its watcher, so a Flutter
+build inside the checkout cannot crash the dev server.

@@ -392,6 +392,10 @@ export class RealtimeFacade {
     return this._input.bindPushToTalkShortcut(...args);
   }
 
+  bindPushToTalkPointer(...args) {
+    return this._input.bindPushToTalkPointer(...args);
+  }
+
   cancelPushToTalkHold(...args) {
     return this._input.cancelPushToTalkHold(...args);
   }

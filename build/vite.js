@@ -93,6 +93,10 @@ export function createBrowserViteConfig({
       // Host-header check. LAN hostnames are added explicitly (see
       // build/allowedHosts.js); IP addresses are always accepted.
       allowedHosts: [...allowedHosts],
+      // A Flutter shell built inside the checkout (mobile/) churns thousands
+      // of files the globe never imports; watching them crashed the dev
+      // server with EBUSY. Build output is never imported either.
+      watch: { ignored: ['**/mobile/**', '**/dist-flight-eye/**'] },
       fs: {
         deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/ENVIRONMENT'],
       },

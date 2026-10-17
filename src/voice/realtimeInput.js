@@ -106,26 +106,7 @@ export class RealtimeInput {
         ) {
           this.pushToTalkHoldControl.blur();
         }
-        // Read Radio's claim before pausing it: pausing can change the very
-        // handoff state that decides whether voice may interrupt.
-        const mayInterrupt = this.mayClaimSpeaker?.() ?? true;
-        this.pauseRadioForVoice();
-        this.pushToTalkKeyHeld = true;
-        if (this.isActive()) {
-          // A claimed hold is an explicit request to speak: cut the assistant
-          // off if it is talking. Short taps never reach this point.
-          if (mayInterrupt) this.bargeIn?.();
-          this.beginPointerTurn?.('keydown');
-          this.ui.root.dataset.pushToTalk = 'held';
-          this.setMicrophoneEnabled(true);
-          if (this.status === 'listening')
-            this.setStatus('listening', t('Release Space to send'));
-        } else {
-          this.start({ pushToTalk: true });
-          // start() performs a controlled stop() before connecting. Restore the
-          // marker it clears so the UI reflects this still-held gesture.
-          if (this.pushToTalkKeyHeld) this.ui.root.dataset.pushToTalk = 'held';
-        }
+        this.claimPushToTalkHold('keydown', t('Release Space to send'));
       }, PUSH_TO_TALK_HOLD_DELAY_MS);
     };
     this.shortcutKeyUpHandler = (event) => {
@@ -164,6 +145,110 @@ export class RealtimeInput {
       'visibilitychange',
       this.shortcutVisibilityHandler,
     );
+  }
+
+  /**
+   * Claims the microphone for a hold that crossed the delay: a held Space
+   * or a held touch. Short taps never reach this point.
+   * @param {string} origin Pointer-turn origin ('keydown' or 'pointerdown').
+   * @param {string} releaseHint Status detail while the hold is live.
+   */
+  claimPushToTalkHold(origin, releaseHint) {
+    // Read Radio's claim before pausing it: pausing can change the very
+    // handoff state that decides whether voice may interrupt.
+    const mayInterrupt = this.mayClaimSpeaker?.() ?? true;
+    this.pauseRadioForVoice();
+    this.pushToTalkKeyHeld = true;
+    if (this.isActive()) {
+      // A claimed hold is an explicit request to speak: cut the assistant
+      // off if it is talking.
+      if (mayInterrupt) this.bargeIn?.();
+      this.beginPointerTurn?.(origin);
+      this.ui.root.dataset.pushToTalk = 'held';
+      this.setMicrophoneEnabled(true);
+      if (this.status === 'listening') this.setStatus('listening', releaseHint);
+    } else {
+      this.start({ pushToTalk: true });
+      // start() performs a controlled stop() before connecting. Restore the
+      // marker it clears so the UI reflects this still-held gesture.
+      if (this.pushToTalkKeyHeld) this.ui.root.dataset.pushToTalk = 'held';
+    }
+  }
+
+  /**
+   * Hold-to-talk on a touch surface, for a phone build: a press on `target`
+   * held past the Space delay claims the microphone exactly as a held Space
+   * does, and the release mutes it. A shorter press is left to the button's
+   * own click, and the click that follows a claimed hold is swallowed so the
+   * session it started is not toggled off. Returns the unbind function.
+   * @param {EventTarget} target The voice button.
+   * @returns {() => void}
+   */
+  bindPushToTalkPointer(target) {
+    if (!target?.addEventListener || this.pointerHoldUnbind) return () => {};
+    let pointerId = null;
+    let claimed = false;
+    let swallowClick = false;
+    const onDown = (event) => {
+      if (event.isPrimary === false || (event.button ?? 0) > 0) return;
+      if (pointerId !== null) return;
+      pointerId = event.pointerId ?? 0;
+      claimed = false;
+      swallowClick = false;
+      // A click-started session is open-mic: a tap toggles it, a hold does
+      // nothing, as with Space.
+      if (this.isActive() && !this.pushToTalkMode) return;
+      this.cancelPushToTalkHold();
+      this.holdPointer?.();
+      target.setPointerCapture?.(pointerId);
+      const holdGeneration = ++this.pushToTalkHoldGeneration;
+      this.pushToTalkHoldTimer = setTimeout(() => {
+        this.pushToTalkHoldTimer = null;
+        if (holdGeneration !== this.pushToTalkHoldGeneration) return;
+        if (pointerId === null || this.pushToTalkKeyHeld) return;
+        if (this.isActive() && !this.pushToTalkMode) return;
+        claimed = true;
+        this.claimPushToTalkHold('pointerdown', t('Release to send'));
+      }, PUSH_TO_TALK_HOLD_DELAY_MS);
+    };
+    const onUp = (event) => {
+      if (pointerId === null || (event.pointerId ?? 0) !== pointerId) return;
+      target.releasePointerCapture?.(pointerId);
+      pointerId = null;
+      const wasClaimed = claimed;
+      claimed = false;
+      this.cancelPushToTalkHold();
+      if (!wasClaimed) {
+        this.releasePointerHold?.();
+        return;
+      }
+      swallowClick = true;
+      this.releasePushToTalkKey();
+    };
+    const onClick = (event) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      event.preventDefault?.();
+      event.stopImmediatePropagation?.();
+    };
+    const onContextMenu = (event) => {
+      // A long press opens the context menu on Android; the hold owns it.
+      if (pointerId !== null) event.preventDefault?.();
+    };
+    target.addEventListener('pointerdown', onDown);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+    target.addEventListener('click', onClick, true);
+    target.addEventListener('contextmenu', onContextMenu);
+    this.pointerHoldUnbind = () => {
+      target.removeEventListener('pointerdown', onDown);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      target.removeEventListener('click', onClick, true);
+      target.removeEventListener('contextmenu', onContextMenu);
+      this.pointerHoldUnbind = null;
+    };
+    return this.pointerHoldUnbind;
   }
 
   /** Cancels an unclaimed Space hold before it starts voice. */

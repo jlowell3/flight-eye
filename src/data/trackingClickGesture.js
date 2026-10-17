@@ -4,6 +4,26 @@ import { isPointerFree } from './inputOwnership.js';
 export const MAX_TRACKING_CLICK_TRAVEL_PX = 6;
 export const MAX_TRACKING_CLICK_DURATION_MS = 400;
 
+// A finger wobbles more than a mouse; a touch build raises the travel limit.
+let trackingClickTravelPx = MAX_TRACKING_CLICK_TRAVEL_PX;
+
+/**
+ * Set the travel limit a press may accumulate and still count as a click,
+ * for pointers coarser than a mouse. Returns the limit now in force.
+ * @param {{travelPx?: number}} [options] - Omit `travelPx` to restore the default.
+ * @returns {number} The active travel limit, in pixels.
+ */
+export function configureTrackingClickGesture({ travelPx } = {}) {
+  if (travelPx === undefined) {
+    trackingClickTravelPx = MAX_TRACKING_CLICK_TRAVEL_PX;
+  } else {
+    if (!Number.isFinite(travelPx) || travelPx < 0)
+      throw new TypeError('travelPx must be a non-negative number');
+    trackingClickTravelPx = travelPx;
+  }
+  return trackingClickTravelPx;
+}
+
 /**
  * Decide whether a completed press stayed spatially click-like. Duration is
  * deliberately ignored so a stationary long press may still select a contact;
@@ -15,7 +35,7 @@ export function isTrackingSelectionGesture(gesture = {}) {
   const travelPx = Number.isFinite(gesture.travelPx)
     ? Math.max(0, gesture.travelPx)
     : Number.POSITIVE_INFINITY;
-  return travelPx <= MAX_TRACKING_CLICK_TRAVEL_PX;
+  return travelPx <= trackingClickTravelPx;
 }
 
 /**
