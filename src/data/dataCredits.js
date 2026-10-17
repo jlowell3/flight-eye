@@ -117,6 +117,13 @@ export const DATA_CREDITS = [
       '(non-commercial)',
   },
   {
+    key: 'adsbfi',
+    html:
+      'Military flights and the regional flight snapshot, when adsb.lol does not answer: ' +
+      '<a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a> ' +
+      '(personal, non-commercial use)',
+  },
+  {
     key: 'adsblol',
     html:
       'Military flights, aircraft traces, bounded regional flight fallback &amp; GNSS navigation integrity: ' +

@@ -143,6 +143,14 @@ source ~/nodevenv/flight-eye/24/bin/activate && ~/flight-eye/deploy/cpanel-updat
 It pulls the branch, reinstalls, rebuilds and restarts the app
 (`FLIGHT_EYE_SKIP_BUILD=1` keeps an uploaded build).
 
+## If the flights stay empty
+
+The aircraft feeds are hobby services. `/api/military` and the regional
+flight snapshot try adsb.lol first and adsb.fi second (`ADSB_API_BASES`
+in `.env.example`), so one outage does not empty the layers; a 502 from
+both means both are unreachable from the host, which `curl -sS -m 15
+https://api.adsb.lol/v2/mil | head -c 100` in the Terminal will show.
+
 ## What is different from the VPS
 
 - Passenger starts the app on the first request and may stop it when idle;

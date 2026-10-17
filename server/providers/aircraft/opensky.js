@@ -5,6 +5,11 @@ import {
   readResponseTextCapped,
 } from '../common/http.js';
 import { requiredFiniteQueryNumber } from '../common/query.js';
+import {
+  adsbBaseHost,
+  fetchAdsbUpstream,
+  readsbAircraftList,
+} from './adsb-upstreams.js';
 // ---------------------------------------------------------------------------
 // OpenSky OAuth2 token + response cache state
 // ---------------------------------------------------------------------------
@@ -337,17 +342,16 @@ async function fetchAdsbLolPointFallback(req) {
     _adsbLolPointInFlight,
     cacheKey,
     async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
       try {
-        const upstream = await fetch(
-          `https://api.adsb.lol/v2/lat/${roundedLat}/lon/${roundedLon}/dist/${ADSBLOL_POINT_RADIUS_NM}`,
+        // adsb.lol first, then adsb.fi (adsb-upstreams.js); adsb.fi's point
+        // route names its rows `aircraft`, which readsbAircraftList reads.
+        const { response: upstream, base } = await fetchAdsbUpstream(
+          `/v2/lat/${roundedLat}/lon/${roundedLon}/dist/${ADSBLOL_POINT_RADIUS_NM}`,
           {
             headers: {
-              Accept: 'application/json',
               'User-Agent': 'gods-eye-view-adsblol-regional-fallback/1.0',
             },
-            signal: controller.signal,
+            timeoutMs: 10000,
           },
         );
         if (!upstream.ok) throw new Error(`upstream HTTP ${upstream.status}`);
@@ -355,11 +359,15 @@ async function fetchAdsbLolPointFallback(req) {
           upstream,
           ADSBLOL_POINT_MAX_RESPONSE_BYTES,
         );
-        const normalized = normalizeAdsbLolPointResponse(payload);
+        const normalized = normalizeAdsbLolPointResponse({
+          ...payload,
+          ac: readsbAircraftList(payload),
+        });
         const record = {
           body: JSON.stringify(normalized),
           cachedAt: Date.now(),
           count: normalized.states.length,
+          source: adsbBaseHost(base),
         };
         _adsbLolPointCache.delete(cacheKey);
         _adsbLolPointCache.set(cacheKey, record);
@@ -368,7 +376,7 @@ async function fetchAdsbLolPointFallback(req) {
         }
         return record;
       } finally {
-        clearTimeout(timeoutId);
+        /* the upstream helper owns its timeouts */
       }
     },
   );
@@ -393,7 +401,8 @@ async function serveAdsbLolPointFallback(req, res, requestedMode, reason) {
       usedMode: 'adsblol-regional',
       reason,
     }),
-    'X-Flight-Source': 'adsb.lol',
+    'X-Feed-Source': fallback.source || 'adsb.lol',
+    'X-Flight-Source': fallback.source || 'adsb.lol',
     'X-Flight-Coverage': `${ADSBLOL_POINT_RADIUS_NM}nm regional fallback`,
     'X-Flight-Count': String(fallback.count),
   });

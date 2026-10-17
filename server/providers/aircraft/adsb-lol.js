@@ -1,4 +1,5 @@
 import { readResponseTextCapped } from '../common/http.js';
+import { adsbBaseHost, fetchAdsbUpstream } from './adsb-upstreams.js';
 
 /**
  * Vite plugin: adsb.lol military aircraft proxy with 12 s response cache.
@@ -25,6 +26,8 @@ export function adsbLolProxy() {
   let _cooldownUntil = 0;
   /** @type {number} Upstream status that started the current cooldown. */
   let _cooldownStatus = 0;
+  /** @type {string} The upstream the cached body came from. */
+  let _source = 'adsb.lol';
   /** Response cache TTL (ms). */
   const CACHE_MS = 12000;
   /** Upstream deadline (ms); the fetch previously had none and could hang a poll. */
@@ -61,7 +64,7 @@ export function adsbLolProxy() {
     res.writeHead(status, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
-      'X-Feed-Source': 'adsb.lol',
+      'X-Feed-Source': _source,
       'X-Feed-Cache': cacheStatus,
       ...(['HIT', 'STALE'].includes(cacheStatus)
         ? {
@@ -104,11 +107,17 @@ export function adsbLolProxy() {
           );
           return;
         }
-        const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
-        const upstream = await fetch('https://api.adsb.lol/v2/mil', {
-          headers: { 'User-Agent': 'gods-eye-view-adsblol-proxy/1.0' },
-          signal,
-        });
+        // adsb.lol first, then adsb.fi (adsb-upstreams.js): a thrown fetch, a
+        // timeout, a 429 or a 5xx on one base moves to the next.
+        const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS * 2);
+        const { response: upstream, base } = await fetchAdsbUpstream(
+          '/v2/mil',
+          {
+            headers: { 'User-Agent': 'gods-eye-view-adsblol-proxy/1.0' },
+            timeoutMs: UPSTREAM_TIMEOUT_MS,
+          },
+        );
+        _source = adsbBaseHost(base);
         if (upstream.ok) {
           const body = await readResponseTextCapped(
             upstream,
