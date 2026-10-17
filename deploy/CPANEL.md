@@ -46,13 +46,14 @@ nano ~/flight-eye/.env
 Fill in `GEV_APP_KEY` (a long random string; the phone shell is built with
 the same value) and `OPENAI_API_KEY`. The template already sets:
 
-| Setting                 | Value           | Why                                                                                                                                                                                   |
-| ----------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GEV_ALLOWED_HOSTS`     | `gev.sg1.space` | The server answers only this public host (plus localhost and IP addresses).                                                                                                           |
-| `GEV_TRUSTED_PROXY`     | `any`           | Passenger hands requests over a socket with no peer address, so no address can be listed; every connection is the host's proxy. Never use `any` where the port is reachable directly. |
-| `GEV_PROXY_SCHEME`      | `https`         | The gate on the voice routes compares the browser's `Origin` against the request scheme; when the proxy sends no `X-Forwarded-Proto`, this says what it terminates.                   |
-| `GEV_VOICE_DAILY_MINTS` | `40`            | Spend brake; Passenger restarts reset it, so set an OpenAI usage limit too.                                                                                                           |
-| `FLIGHTS_PROVIDER`      | `adsb-lol`      | No OpenSky (non-commercial licence).                                                                                                                                                  |
+| Setting                 | Value           | Why                                                                                                                                                                                                                       |
+| ----------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GEV_ALLOWED_HOSTS`     | `gev.sg1.space` | The server answers only this public host (plus localhost and IP addresses).                                                                                                                                               |
+| `GEV_TRUSTED_PROXY`     | `any`           | Passenger hands requests over a socket with no peer address, so no address can be listed; every connection is the host's proxy. Never use `any` where the port is reachable directly.                                     |
+| `GEV_PROXY_SCHEME`      | `https`         | The gate on the voice routes compares the browser's `Origin` against the request scheme; when the proxy sends no `X-Forwarded-Proto`, this says what it terminates.                                                       |
+| `GEV_VOICE_DAILY_MINTS` | `40`            | Spend brake; Passenger restarts reset it, so set an OpenAI usage limit too.                                                                                                                                               |
+| `FLIGHTS_PROVIDER`      | `opensky`       | The worldwide snapshot. `adsb-lol` instead serves only aircraft within 250 nm of the view (no OpenSky, whose licence is non-commercial), which is empty over open ocean at a world zoom.                                  |
+| `OPENSKY_AUTH_MODE`     | `anon`          | No account needed (about 400 credits a day, 4 per snapshot; the server caches and stretches its refresh as the budget thins). With a free OpenSky account, set `oauth` and the client ID and secret for about 4000 a day. |
 
 The file is read by the server at start (`.env` is ignored by git). The
 cPanel form's **Environment variables** work too, but the file keeps the key
@@ -145,7 +146,9 @@ It pulls the branch, reinstalls, rebuilds and restarts the app
 
 ## If the flights stay empty
 
-The aircraft feeds are hobby services. `/api/military` and the regional
+With `FLIGHTS_PROVIDER=adsb-lol` the Live Flights layer covers 250 nm around
+the view, so a world zoom over the ocean shows nothing: search a place or
+switch to `opensky`. The aircraft feeds are hobby services. `/api/military` and the regional
 flight snapshot try adsb.lol first and adsb.fi second (`ADSB_API_BASES`
 in `.env.example`), so one outage does not empty the layers; a 502 from
 both means both are unreachable from the host, which `curl -sS -m 15
