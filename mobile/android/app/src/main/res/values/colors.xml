@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the web app's page background so no frame flashes a lighter colour. -->
+    <color name="flight_eye_background">#0a0a0f</color>
+    <color name="ic_launcher_background">#0a0a0f</color>
+</resources>

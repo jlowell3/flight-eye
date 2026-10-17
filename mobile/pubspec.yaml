@@ -1,0 +1,28 @@
+name: flight_eye
+description: "Flight Eye phone shell: a WebView around the hosted Flight Eye web build."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Pinned exactly: the shell is small and the WebView plugin's Android
+  # behaviour (permission bridging, media autoplay) is what we test against.
+  webview_flutter: 4.14.1
+  webview_flutter_android: 4.14.1
+  permission_handler: 13.0.2
+  wakelock_plus: 1.8.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
