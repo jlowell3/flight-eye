@@ -146,3 +146,36 @@ test('controller lifetime stops pending transport and releases resources through
   assert.equal(controller.stream, null);
   assert.equal(controller.isActive(), false);
 });
+
+test('a voice profile rides on the token request, from the option or the page global', async () => {
+  const urls = [];
+  const tokenTransport = async (input) => {
+    urls.push(String(input));
+    return tokenReply();
+  };
+  await createRealtimeBackend({
+    profile: 'flight-eye',
+    tokenTransport,
+  }).requestToken();
+  assert.equal(
+    new URL(urls[0], 'http://localhost').searchParams.get('profile'),
+    'flight-eye',
+  );
+  await createRealtimeBackend({ tokenTransport }).requestToken();
+  assert.equal(
+    new URL(urls[1], 'http://localhost').searchParams.has('profile'),
+    false,
+    'no profile is sent unless one is named',
+  );
+  globalThis.GEV_VOICE_PROFILE = 'flight-eye';
+  try {
+    await createRealtimeBackend({ tokenTransport }).requestToken();
+  } finally {
+    delete globalThis.GEV_VOICE_PROFILE;
+  }
+  assert.equal(
+    new URL(urls[2], 'http://localhost').searchParams.get('profile'),
+    'flight-eye',
+    'the page global names the profile for the default backend',
+  );
+});

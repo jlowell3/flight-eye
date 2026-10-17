@@ -10,7 +10,9 @@ const builtins = new Set(
 );
 const code = /\.[mc]?js$/;
 const entry = (file) =>
-  file === 'src/main.js' || file.startsWith('src/standalone/');
+  file === 'src/main.js' ||
+  file === 'src/flightEye/main.js' ||
+  file.startsWith('src/standalone/');
 const tests = (file) =>
   file.endsWith('.test.mjs') ||
   file.startsWith('src/testSupport/') ||

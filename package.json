@@ -45,6 +45,8 @@
     "opensky:import": "./scripts/opensky-import-client.sh",
     "build": "vite build",
     "build:panel": "node scripts/build-panel.mjs",
+    "build:flight-eye": "node scripts/build-flight-eye.mjs",
+    "serve:flight-eye": "node scripts/serve-flight-eye.mjs",
     "preview": "vite preview",
     "test": "node scripts/run-unit-tests.mjs",
     "test:track": "node scripts/track-regression.mjs",

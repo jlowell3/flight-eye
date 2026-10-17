@@ -1,0 +1,38 @@
+/* Flight Eye: the aircraft-only build. The shell still constructs every
+   panel (src/ui/applicationShell.js builds radio, CCTV and global context
+   unconditionally), so surfaces that belong to removed layers are hidden
+   here, the way body.ui-clean-view and body.ui-embed hide theirs. Layer
+   rows themselves are removed by the catalog's hidden-layer set. */
+
+/* Panels and chips of removed layers. */
+body.ui-flight-eye #cctv-panel,
+body.ui-flight-eye #cctv-sync-chip,
+body.ui-flight-eye #traffic-sync-chip,
+body.ui-flight-eye #street-level-panel,
+body.ui-flight-eye #scene-panel,
+body.ui-flight-eye #radio-panel,
+body.ui-flight-eye #context-radio-dock,
+body.ui-flight-eye #weather-panel,
+body.ui-flight-eye #recent-imagery-panel,
+/* Space Missions tab and the installation tools inside Global Context. */
+body.ui-flight-eye #global-context-missions-btn,
+body.ui-flight-eye #context-missions-view,
+body.ui-flight-eye #installations-search-btn,
+body.ui-flight-eye #tr3b-toggle,
+/* Cockpit radio utility (the Radio layer is removed). */
+body.ui-flight-eye #cockpit-radio-toggle-btn,
+body.ui-flight-eye #cockpit-radio-panel,
+/* DISPLAY rows owned by removed tools: sonar, scope, draw, import, celestial. */
+body.ui-flight-eye [id^='cyber-sonar-'],
+body.ui-flight-eye #scope-toggle,
+body.ui-flight-eye #scope-slider-row,
+body.ui-flight-eye #draw-toggle,
+body.ui-flight-eye #draw-mode-row,
+body.ui-flight-eye #draw-label-row,
+body.ui-flight-eye #geo-import-group,
+body.ui-flight-eye #celestial-toggle,
+/* First-run missions that name removed layers. */
+body.ui-flight-eye [data-first-run-choice='space-missions'],
+body.ui-flight-eye [data-first-run-choice='environmental'] {
+  display: none !important;
+}

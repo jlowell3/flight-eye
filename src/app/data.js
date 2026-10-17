@@ -14,6 +14,7 @@ export function createApplicationData({
   const dataManager = new LayerLifecycle(viewer, {
     allowQaRegistration,
     getSourceAvailability: catalog?.getSourceAvailability,
+    hiddenLayerIds: catalog?.hiddenLayerIds,
   });
   defer(async () => {
     await dataManager.destroyAll();

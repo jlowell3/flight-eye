@@ -192,3 +192,37 @@ test('Mapillary can be omitted or replaced without changing catalog membership',
     /Mapillary source/,
   );
 });
+
+test('hidden layers stay registered but leave the toggle panel', (t) => {
+  const lifetime = new AbortController();
+  t.after(() => lifetime.abort());
+  const catalog = createApplicationCatalog({
+    sources: fixtureSources([], []),
+    signal: lifetime.signal,
+    surface: fixtureSurface(lifetime.signal),
+    hiddenLayers: ['cctv', 'radio'],
+  });
+  assert.deepEqual([...catalog.hiddenLayerIds], ['cctv', 'radio']);
+  assert.ok(catalog.get('cctv'), 'a hidden layer is still constructed');
+  const lifecycle = new LayerLifecycle(
+    {},
+    { hiddenLayerIds: catalog.hiddenLayerIds },
+  );
+  for (const layer of catalog.layers) lifecycle.register(layer);
+  const rows = new Map(lifecycle.getAll().map((row) => [row.id, row]));
+  assert.equal(rows.get('cctv').showInTogglePanel, false);
+  assert.equal(rows.get('radio').showInTogglePanel, false);
+  assert.equal(rows.get('flights').showInTogglePanel, true);
+  assert.equal(rows.get('bhote-koshi-2026').showInTogglePanel, false);
+  for (const hiddenLayers of [['nope'], 'cctv', [''], [1]])
+    assert.throws(
+      () =>
+        createApplicationCatalog({
+          sources: fixtureSources([], []),
+          signal: lifetime.signal,
+          surface: fixtureSurface(lifetime.signal),
+          hiddenLayers,
+        }),
+      TypeError,
+    );
+});

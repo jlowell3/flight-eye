@@ -14,6 +14,7 @@ import {
 } from './constants.js';
 import { realtimeInstructions } from './instructions.js';
 import { GEV_REALTIME_TOOLS } from './tools.js';
+import { isVoiceProfile, toolsForVoiceProfile } from './profiles.js';
 import {
   preferCodexOAuth,
   readCodexOAuthAccessToken,
@@ -152,6 +153,24 @@ function createRealtimeTokenHandler({
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Unsupported cloud voice auth mode' }));
+      return;
+    }
+    // Voice profile, requested by a trimmed build as ?profile=<name>. An
+    // unknown name is refused rather than silently widened to every tool.
+    const profile = query.get('profile') || null;
+    if (!isVoiceProfile(profile)) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Unknown voice profile' }));
+      return;
+    }
+    let sessionTools;
+    try {
+      sessionTools = toolsForVoiceProfile(tools, profile);
+    } catch (error) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: error.message }));
       return;
     }
 
@@ -299,7 +318,7 @@ function createRealtimeTokenHandler({
           output: { voice },
         },
         instructions: realtimeInstructions(annotationGuidance),
-        tools,
+        tools: sessionTools,
         tool_choice: 'auto',
       },
     };
@@ -324,6 +343,7 @@ function createRealtimeTokenHandler({
       // case where a bogus ?tier= was silently downgraded to standard.
       res.setHeader('X-GEV-Voice-Tier', tier);
       res.setHeader('X-GEV-Voice-Model', model);
+      res.setHeader('X-GEV-Voice-Profile', profile || 'standard');
       res.setHeader(
         'X-GEV-Voice-Auth',
         authMode === 'oauth' ? 'codex-oauth' : 'env',

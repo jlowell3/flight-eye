@@ -61,9 +61,15 @@ export function createApplicationCatalog({
   resolveAsset,
   nepalBoundaryResolver,
   streetLevelProviders,
+  hiddenLayers = [],
 }) {
   if (!signal?.addEventListener)
     throw new TypeError('An application lifetime signal is required');
+  if (
+    !Array.isArray(hiddenLayers) ||
+    hiddenLayers.some((id) => typeof id !== 'string' || !id)
+  )
+    throw new TypeError('Hidden layers must be an array of layer ids');
   signal.throwIfAborted();
   if (!surface?.groundFloor || !surface?.terrain)
     throw new TypeError('Application surface services are required');
@@ -179,8 +185,14 @@ export function createApplicationCatalog({
       ],
       metadata,
     );
+    // A build may keep layers registered (the catalog guards require every
+    // layer) while leaving them out of its toggle panel and voice list.
+    for (const id of hiddenLayers) {
+      if (!catalog.get(id)) throw new TypeError(`Unknown hidden layer: ${id}`);
+    }
     return Object.freeze({
       ...catalog,
+      hiddenLayerIds: new Set(hiddenLayers),
       getSourceAvailability: sourceComposition.createAvailabilityLookup(
         catalog.layers,
       ),

@@ -76,9 +76,16 @@ function refreshFailureFromStats(stats, label) {
 export class LayerLifecycle {
   constructor(
     viewer,
-    { allowQaRegistration = false, getSourceAvailability } = {},
+    {
+      allowQaRegistration = false,
+      getSourceAvailability,
+      hiddenLayerIds = null,
+    } = {},
   ) {
     this._catalogSourceAvailability = getSourceAvailability;
+    // Layers a build registers but keeps out of its toggle panel and voice
+    // list (see createApplicationCatalog's hiddenLayers).
+    this._hiddenLayerIds = new Set(hiddenLayerIds ?? []);
     this.viewer = viewer;
     this._activityListeners = new Set();
     this.layers = new Map(); // id → { module, enabled, initialized, intervalId, lifecycleState, lifecycleUncertain }
@@ -2217,7 +2224,9 @@ export class LayerLifecycle {
         name: entry.module.name,
         icon: entry.module.icon,
         source: entry.module.source,
-        showInTogglePanel: entry.module.showInTogglePanel !== false,
+        showInTogglePanel:
+          entry.module.showInTogglePanel !== false &&
+          !this._hiddenLayerIds.has(id),
         // Registry id of the provider key this layer needs, if any (mirrors
         // showInTogglePanel). The layer reports stats.keyRequired while that
         // key is absent; the panel builds the guidance text from the pair.

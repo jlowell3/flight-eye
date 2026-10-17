@@ -21,6 +21,12 @@ export function createStandaloneApplication({
   voice = {},
   sources = {},
   streetLevelProviders,
+  // A trimmed build (Flight Eye) keeps every layer registered but names the
+  // ones its panel and voice list leave out, tunes the viewer for phones and
+  // skips the first-run launcher.
+  hiddenLayers,
+  viewerOptions,
+  welcome = true,
   allowQaRegistration = false,
 }) {
   if (constructed)
@@ -57,10 +63,12 @@ export function createStandaloneApplication({
         googleTokens: googleApiKey ? null : createGoogleTokenSource(),
         cesiumToken,
         loaderStatus,
+        viewerOptions,
       });
       catalog = createStandaloneCatalog({
         sources,
         streetLevelProviders,
+        hiddenLayers,
         nepalBoundaryResolver: (signal) =>
           scene.operations.annotationResolver.resolveRegionRingForQuery(
             'Nepal',
@@ -84,6 +92,12 @@ export function createStandaloneApplication({
     createData: (context) =>
       createStandaloneData({ ...context, allowQaRegistration, catalog }),
     createTools: (context) =>
-      createStandaloneTools({ ...context, loadingScreen, placeSearch, voice }),
+      createStandaloneTools({
+        ...context,
+        loadingScreen,
+        placeSearch,
+        voice,
+        welcome,
+      }),
   });
 }

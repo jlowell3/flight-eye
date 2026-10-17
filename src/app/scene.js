@@ -25,6 +25,8 @@ export async function createApplicationScene({
   credits,
   MapController = MapStackController,
   mapOptions = {},
+  // Render settings for the viewer (see createApplicationViewer).
+  viewerOptions = {},
   loaderStatus,
   signal,
   defer,
@@ -50,6 +52,7 @@ export async function createApplicationScene({
   document.body.appendChild(creditContainer);
   defer(() => creditContainer.remove());
   const viewer = createApplicationViewer({
+    ...viewerOptions,
     container: 'cesiumContainer',
     creditContainer,
   });

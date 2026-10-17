@@ -102,10 +102,29 @@ export function installTrackpadPinchZoom(
   };
 }
 
-/** Create the standard globe viewer in caller-owned, visible containers. */
-export function createApplicationViewer({ container, creditContainer }) {
+const positiveNumber = (value, name) => {
+  if (!Number.isFinite(value) || value <= 0)
+    throw new TypeError(`${name} must be a positive number`);
+  return value;
+};
+
+/**
+ * Create the standard globe viewer in caller-owned, visible containers.
+ * The render settings default to the desktop app's; a phone build lowers
+ * `msaaSamples` (1 turns MSAA off), `targetFrameRate` and `resolutionScale`.
+ */
+export function createApplicationViewer({
+  container,
+  creditContainer,
+  msaaSamples = 4,
+  targetFrameRate = 60,
+  resolutionScale = 1,
+}) {
   if (!container || !creditContainer)
     throw new TypeError('Viewer and credit containers are required');
+  positiveNumber(msaaSamples, 'msaaSamples');
+  positiveNumber(targetFrameRate, 'targetFrameRate');
+  positiveNumber(resolutionScale, 'resolutionScale');
   const viewer = new Cesium.Viewer(container, {
     timeline: false,
     animation: false,
@@ -120,11 +139,12 @@ export function createApplicationViewer({ container, creditContainer }) {
     infoBox: false,
     baseLayer: false,
     creditContainer,
-    msaaSamples: 4,
+    msaaSamples,
     contextOptions: { webgl: { preserveDrawingBuffer: true } },
   });
   try {
-    viewer.targetFrameRate = 60;
+    viewer.targetFrameRate = targetFrameRate;
+    if (resolutionScale !== 1) viewer.resolutionScale = resolutionScale;
     // Before any tile builds a draw command: Cesium's per-vertex model
     // atmosphere fails to LINK on Apple's Metal backend and kills the
     // render loop. See app/atmosphereCompat.js.

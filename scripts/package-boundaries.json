@@ -319,6 +319,7 @@
     "modules": [
       "src/i18n/marker.js",
       "src/hudLayoutPolicy.js",
+      "src/flightEye/voiceProfile.js",
       "server/providers/common/rate-limit.js",
       "server/providers/common/request.js",
       "server/providers/common/source-root.js",
@@ -329,6 +330,7 @@
       "server/providers/openai/hud-summary.js",
       "server/providers/openai/instructions.js",
       "server/providers/openai/rate-limit.js",
+      "server/providers/openai/profiles.js",
       "server/providers/openai/realtime.js",
       "server/providers/openai/tools.js",
       "src/hudSummaryResponse.js",

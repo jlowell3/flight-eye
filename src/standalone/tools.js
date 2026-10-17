@@ -2,9 +2,13 @@ import { createAssetDirectorySource } from '../director/packs/source.js';
 import { createApplicationTools } from '../app/tools.js';
 import { startStandaloneChrome } from './startupChrome.js';
 import { loadToolCatalog } from './toolCatalog.js';
-export function createStandaloneTools(options) {
+export function createStandaloneTools({ welcome = true, ...options } = {}) {
   return createApplicationTools({
-    startChrome: startStandaloneChrome,
+    // `welcome: false` starts the chrome without the first-run launcher.
+    startChrome: (chrome) =>
+      startStandaloneChrome(
+        welcome ? chrome : { ...chrome, initializeWelcome: null },
+      ),
     sceneDataPacks: {
       sources: {
         assets: createAssetDirectorySource({

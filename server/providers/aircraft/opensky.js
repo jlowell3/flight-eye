@@ -34,6 +34,22 @@ const OPENSKY_STATES_URL =
 const OPENSKY_STATES_MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 
 /**
+ * Which provider answers /api/flights: `opensky` (the default; the global
+ * snapshot, with adsb.lol as the regional fallback) or `adsb-lol` (the
+ * regional adsb.lol snapshot only, for a deployment that must not use
+ * OpenSky, whose licence is non-commercial). Unreadable values mean the
+ * default rather than a silently different provider.
+ */
+export function flightsProvider(env = process.env) {
+  const value = String(env?.FLIGHTS_PROVIDER || '')
+    .trim()
+    .toLowerCase();
+  return value === 'adsb-lol' || value === 'adsblol' || value === 'adsb.lol'
+    ? 'adsb-lol'
+    : 'opensky';
+}
+
+/**
  * Credit-governor cooldown for a 429: OpenSky's retry-after bounded to
  * 30 s … 30 min, or 2 min when the header is absent.
  * @param {Response} upstream Rate-limited response.
@@ -423,10 +439,36 @@ export function openSkyProxy() {
         // This mount also matches its /track route, served by its own handler.
         if (new URL(req.url || '/', 'http://localhost').pathname !== '/')
           return next();
-        res.setHeader('X-Feed-Source', 'OpenSky Network');
         const requestedMode = normalizeOpenSkyAuthMode(
           process.env.OPENSKY_AUTH_MODE,
         );
+        // FLIGHTS_PROVIDER=adsb-lol: serve the regional snapshot around the
+        // view anchor and never contact OpenSky.
+        if (flightsProvider() === 'adsb-lol') {
+          res.setHeader('X-Feed-Source', 'adsb.lol');
+          if (!adsbLolFallbackAnchor(req)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(
+              JSON.stringify({
+                error: 'FLIGHTS_PROVIDER=adsb-lol needs lat and lon',
+              }),
+            );
+            return;
+          }
+          if (
+            await serveAdsbLolPointFallback(
+              req,
+              res,
+              requestedMode,
+              'adsb_lol_provider_selected',
+            )
+          )
+            return;
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'adsb.lol snapshot unavailable' }));
+          return;
+        }
+        res.setHeader('X-Feed-Source', 'OpenSky Network');
         const now = Date.now();
         const inCooldown = now < _openskyCooldownUntil;
         // Fresh-enough cache (adaptive TTL) OR any cache during a 429

@@ -7,6 +7,9 @@ export function createRealtimeBackend({
   tokenTransport = (...args) => fetch(...args),
   connectionTransport = (...args) => fetch(...args),
   timeoutMs = 30_000,
+  // A trimmed build names its voice profile (server/providers/openai/
+  // profiles.js) so the session is minted with that build's tools only.
+  profile = globalThis.GEV_VOICE_PROFILE ?? null,
   signal: lifetime,
 } = {}) {
   const scoped = (signal) =>
@@ -27,6 +30,7 @@ export function createRealtimeBackend({
         tier: resolveVoiceModel(tier).tier,
       });
       if (authMode === 'oauth') query.set('auth', 'oauth');
+      if (profile) query.set('profile', String(profile));
       const url = `${tokenEndpoint}${separator}${query}`;
       const response = await tokenTransport(url, {
         signal,

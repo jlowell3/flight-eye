@@ -9,6 +9,7 @@ export function createStandaloneCatalog({
   nepalBoundaryResolver,
   sources = {},
   streetLevelProviders,
+  hiddenLayers,
   signal = new AbortController().signal,
   surface = createSurfaceServices({
     terrainSource: createApplicationRequestServices().terrain,
@@ -20,6 +21,7 @@ export function createStandaloneCatalog({
     surface,
     sources: createStandaloneLayerSources(sources),
     streetLevelProviders,
+    hiddenLayers,
     signal,
     vesselOptions: {
       maxRows: import.meta.env?.VITE_AIS_LIVE_MAX_ROWS,

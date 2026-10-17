@@ -1,4 +1,4 @@
-import { getOpenSkyToken } from './opensky.js';
+import { flightsProvider, getOpenSkyToken } from './opensky.js';
 import { readCappedResponseText } from '../common/http.js';
 /**
  * Vite plugin: aircraft track-history backfill proxies (PRD WS-F F1/F2).
@@ -6,12 +6,71 @@ import { readCappedResponseText } from '../common/http.js';
  * /api/flights/track?icao24=<hex6> — OpenSky GET /tracks/all (experimental;
  *   own credit bucket, 4 credits per call on the free tier). OAuth via the
  *   shared coalesced token. 60s per-icao cache; 404/429 forwarded so the
- *   client can fall back to its accumulated trail silently.
+ *   client can fall back to its accumulated trail silently. Under
+ *   FLIGHTS_PROVIDER=adsb-lol the same route serves the aircraft's adsb.lol
+ *   trace rewritten into OpenSky's shape, so the client reads one format.
  * /api/military/track?hex=<hex> — adsb.lol tar1090 readsb trace
  *   (undocumented but live; no browser CORS, hence this proxy). Up to ~24h
  *   of real history per aircraft. Treat as best-effort; data is ODbL —
  *   credit "adsb.lol (ODbL)" in the UI.
  */
+
+const FEET_TO_METRES = 0.3048;
+
+/** A finite number from a trace cell; null, booleans and blanks are not 0. */
+const cell = (value) =>
+  typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim() !== ''
+      ? Number(value)
+      : NaN;
+
+const readsbTraceUrl = (hex) =>
+  `https://adsb.lol/data/traces/${hex.slice(-2)}/trace_full_${hex}.json`;
+
+/**
+ * An OpenSky /tracks/all body built from an adsb.lol readsb trace. OpenSky
+ * rows are [time s, lat, lon, baro alt m, true track, on ground]; readsb
+ * rows are [offset s from `timestamp`, lat, lon, alt ft or 'ground', ground
+ * speed, track, ...]. Rows without a finite position are dropped; altitude
+ * is null on the ground or when unreported.
+ */
+export function openSkyTrackFromReadsbTrace(payload, icao24) {
+  const base = Number(payload?.timestamp);
+  const rows =
+    Number.isFinite(base) && Array.isArray(payload?.trace) ? payload.trace : [];
+  const path = [];
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    const offset = cell(row[0]);
+    const latitude = cell(row[1]);
+    const longitude = cell(row[2]);
+    if (![offset, latitude, longitude].every(Number.isFinite)) continue;
+    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) continue;
+    const onGround =
+      typeof row[3] === 'string' && row[3].trim().toLowerCase() === 'ground';
+    const altitudeFt = onGround ? NaN : cell(row[3]);
+    const track = cell(row[5]);
+    path.push([
+      Math.round(base + offset),
+      latitude,
+      longitude,
+      Number.isFinite(altitudeFt)
+        ? Math.round(altitudeFt * FEET_TO_METRES * 100) / 100
+        : null,
+      Number.isFinite(track) ? track : null,
+      onGround,
+    ]);
+  }
+  return {
+    icao24,
+    callsign: null,
+    startTime: path.length ? path[0][0] : null,
+    endTime: path.length ? path[path.length - 1][0] : null,
+    path,
+  };
+}
+
 export function trackBackfillProxies() {
   const TRACK_CACHE_MS = 60000;
   const TRACK_CACHE_MAX = 200;
@@ -27,7 +86,8 @@ export function trackBackfillProxies() {
     }
   }
 
-  async function proxyJson(res, key, upstreamUrl, headers = {}) {
+  /** `transform` rewrites an OK body before it is cached and served. */
+  async function proxyJson(res, key, upstreamUrl, headers = {}, transform) {
     const cached = cache.get(key);
     if (cached && Date.now() - cached.at < TRACK_CACHE_MS) {
       res.statusCode = cached.status;
@@ -52,6 +112,13 @@ export function trackBackfillProxies() {
     } else if (!upstream.ok) {
       // Sanitize upstream error surface; status code is signal enough
       body = JSON.stringify({ error: `Track source HTTP ${upstream.status}` });
+    } else if (transform) {
+      try {
+        body = transform(text);
+      } catch {
+        status = 502;
+        body = JSON.stringify({ error: 'Track source body unreadable' });
+      }
     } else {
       body = text;
     }
@@ -79,6 +146,19 @@ export function trackBackfillProxies() {
           );
           return;
         }
+        if (flightsProvider() === 'adsb-lol') {
+          await proxyJson(
+            res,
+            `lol-path:${icao24}`,
+            readsbTraceUrl(icao24),
+            {},
+            (text) =>
+              JSON.stringify(
+                openSkyTrackFromReadsbTrace(JSON.parse(text), icao24),
+              ),
+          );
+          return;
+        }
         const token = await getOpenSkyToken();
         await proxyJson(
           res,
@@ -89,7 +169,7 @@ export function trackBackfillProxies() {
       } catch (error) {
         res.statusCode = 502;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ error: 'OpenSky track fetch failed' }));
+        res.end(JSON.stringify({ error: 'Track fetch failed' }));
       }
     });
 
@@ -107,11 +187,7 @@ export function trackBackfillProxies() {
           );
           return;
         }
-        await proxyJson(
-          res,
-          `lol:${hex}`,
-          `https://adsb.lol/data/traces/${hex.slice(-2)}/trace_full_${hex}.json`,
-        );
+        await proxyJson(res, `lol:${hex}`, readsbTraceUrl(hex));
       } catch (error) {
         res.statusCode = 502;
         res.setHeader('Content-Type', 'application/json');
