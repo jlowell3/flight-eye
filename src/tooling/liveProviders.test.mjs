@@ -73,6 +73,30 @@ function environment(t, values) {
   }
 }
 
+/** Pin the readsb routes to adsb.lol alone, so a mocked outage is not retried on adsb.fi. */
+function singleAdsbUpstream(t) {
+  environment(t, { ADSB_API_BASES: 'https://api.adsb.lol' });
+}
+
+test('military aircraft route falls back to adsb.fi when adsb.lol fails and names the source', async (t) => {
+  environment(t, { ADSB_API_BASES: undefined });
+  t.mock.method(console, 'warn', () => {});
+  const urls = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    urls.push(String(url));
+    if (url.includes('adsb.lol')) return new Response('down', { status: 502 });
+    return Response.json({ ac: [{ hex: 'abc123', flight: 'RCH123' }] });
+  });
+  const response = await install(providers.adsbLolProxy())('/api/military');
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.headers['x-feed-source'], 'adsb.fi');
+  assert.deepEqual(
+    urls.map((url) => new URL(url).hostname),
+    ['api.adsb.lol', 'opendata.adsb.fi'],
+  );
+  assert.equal(JSON.parse(response.body).ac.length, 1);
+});
+
 test('live entry resolves in Node and aircraft normalization stays independently portable', async () => {
   const entry = await import('gods-eye-view/server/providers/live');
   assert.equal(entry.openSkyProxy, providers.openSkyProxy);
@@ -342,6 +366,7 @@ test('military aircraft route answers 502 to an oversized body without caching i
 });
 
 test('military aircraft route preserves fresh cache and stale response after upstream failure', async (t) => {
+  singleAdsbUpstream(t);
   let now = Date.now();
   let calls = 0;
   t.mock.method(Date, 'now', () => now);
@@ -434,6 +459,7 @@ test('AIS preview route ingests through the socket, returns tracks and disposes 
 });
 
 test('military aircraft route serves stale cache on an upstream 429 and cools down for Retry-After', async (t) => {
+  singleAdsbUpstream(t);
   let now = Date.now();
   let calls = 0;
   t.mock.method(Date, 'now', () => now);
@@ -472,6 +498,7 @@ test('military aircraft route serves stale cache on an upstream 429 and cools do
 });
 
 test('military aircraft route relays an upstream 429 when nothing is cached', async (t) => {
+  singleAdsbUpstream(t);
   t.mock.method(console, 'warn', () => {});
   let calls = 0;
   t.mock.method(globalThis, 'fetch', async () => {
@@ -496,6 +523,7 @@ test('military aircraft route relays an upstream 429 when nothing is cached', as
 });
 
 test('military fallback cancels a stalled 5xx body and starts cooldown at receipt', async (t) => {
+  singleAdsbUpstream(t);
   let now = 1_800_000_000_000;
   let calls = 0;
   let cancelled = false;

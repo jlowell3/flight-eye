@@ -71,8 +71,10 @@ export async function fetchAdsbUpstream(
         signal: controller.signal,
       });
       if (usable(response)) return { response, base };
+      // A failing body is dropped only once a later base is tried; the last
+      // failure is returned intact so the caller can relay or inspect it.
+      lastFailure?.response.body?.cancel?.().catch?.(() => {});
       lastFailure = { response, base };
-      response.body?.cancel?.().catch?.(() => {});
     } catch (error) {
       lastError = error;
     } finally {
