@@ -75,6 +75,25 @@ export const ACTION_LABELS = Object.freeze({
   menu: msg('MENU'),
 });
 
+/**
+ * What a tap on the greyed COCKPIT chip says, by the coordinator's
+ * entryBlockedReason. A chip that only goes dim teaches nothing; the hint
+ * names the one step that opens it.
+ */
+export const COCKPIT_HINTS = Object.freeze({
+  'no-tracked-aircraft': msg('Tap an aircraft on the map first, then COCKPIT'),
+  'contacts-starting': msg(
+    'Contacts are still starting. Try again in a moment',
+  ),
+  'contacts-inactive': msg(
+    'Aircraft contacts are not running yet. Try again in a moment',
+  ),
+});
+
+export function cockpitHint(reason) {
+  return COCKPIT_HINTS[reason] ?? COCKPIT_HINTS['no-tracked-aircraft'];
+}
+
 export function actionBarState({
   tracked = false,
   cockpitActive = false,

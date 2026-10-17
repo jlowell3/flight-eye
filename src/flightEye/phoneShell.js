@@ -14,6 +14,7 @@ import {
   CONTACT_FILTERS,
   actionBarState,
   backAction,
+  cockpitHint,
   contactNavigationOptions,
   isPhoneUi,
   nextVisualStyle,
@@ -77,6 +78,9 @@ function icon(doc, name) {
     text: name,
   });
 }
+
+/** How long the tap hint stays up. */
+const HINT_MS = 2800;
 
 function actionButton(doc, { id, iconName, label }) {
   return element(doc, 'button', { type: 'button', 'data-action': id }, [
@@ -252,7 +256,24 @@ export function initPhoneShell({
   );
   const scrim = element(doc, 'div', { id: 'fe-scrim', 'data-open': 'false' });
 
-  body.append(scrim, chips, telemetry, bar, menu);
+  // A one-line hint above the action bar, for a tap on a chip that cannot
+  // act yet (Cockpit without a tracked aircraft).
+  const hint = element(doc, 'div', {
+    id: 'fe-hint',
+    role: 'status',
+    'aria-live': 'polite',
+    'data-visible': 'false',
+  });
+  let hintTimer = null;
+  const showHint = (text) => {
+    hint.textContent = text;
+    hint.setAttribute('data-visible', 'true');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      hint.setAttribute('data-visible', 'false');
+    }, HINT_MS);
+  };
+  body.append(scrim, chips, telemetry, hint, bar, menu);
 
   const setMenuOpen = (open) => {
     state.menuOpen = Boolean(open);
@@ -325,7 +346,9 @@ export function initPhoneShell({
     );
     buttons.cockpit.querySelector('.material-symbols-outlined').textContent =
       view.cockpitLabel === ACTION_LABELS.exit ? 'close_fullscreen' : 'flight';
-    buttons.cockpit.disabled = !view.cockpitEnabled;
+    // Not `disabled`: a disabled button swallows the tap, and the tap is
+    // what carries the hint.
+    buttons.cockpit.setAttribute('aria-disabled', String(!view.cockpitEnabled));
     buttons.cockpit.setAttribute(
       'aria-pressed',
       String(cockpit?.active === true),
@@ -357,8 +380,16 @@ export function initPhoneShell({
       awareness?.focusCurrent?.({ origin: 'user' });
     },
     cockpit() {
-      const active = cockpitState()?.active === true;
-      styleManager.controlCockpit(active ? 'exit' : 'enter');
+      const cockpit = cockpitState();
+      if (cockpit?.active === true) {
+        styleManager.controlCockpit('exit');
+        return;
+      }
+      if (cockpit?.entryAllowed !== true) {
+        showHint(t(cockpitHint(cockpit?.entryBlockedReason)));
+        return;
+      }
+      styleManager.controlCockpit('enter');
     },
     previous() {
       styleManager.controlCockpit(
@@ -490,6 +521,8 @@ export function initPhoneShell({
     destroy() {
       clearInterval(timer);
       listeners.abort();
+      clearTimeout(hintTimer);
+      hint.remove();
       if (windowRef.flightEyeBack === back) delete windowRef.flightEyeBack;
       for (const node of [scrim, chips, telemetry, bar, menu]) node.remove();
       body.classList.remove('ui-phone');

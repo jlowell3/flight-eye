@@ -117,9 +117,33 @@ body.ui-phone #fe-action-bar {
   border-color: var(--fe-line);
   color: var(--fe-accent);
 }
-#fe-action-bar button:disabled {
+#fe-action-bar button:disabled,
+#fe-action-bar button[aria-disabled='true'] {
   color: var(--fe-dim);
   opacity: 0.45;
+}
+
+/* The tap hint above the action bar. */
+#fe-hint {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--fe-dock-space) + 10px);
+  z-index: 160;
+  display: none;
+  padding: 10px 14px;
+  border: 1px solid var(--fe-line);
+  border-radius: 10px;
+  background: var(--fe-panel);
+  color: var(--fe-ink);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+}
+body.ui-phone #fe-hint[data-visible='true'] {
+  display: block;
 }
 
 /* Contact filter chips, shown in Contacts and Cockpit. */

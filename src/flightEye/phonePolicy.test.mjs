@@ -6,6 +6,7 @@ import {
   PHONE_STYLE_CYCLE,
   actionBarState,
   backAction,
+  cockpitHint,
   contactNavigationOptions,
   isPhoneUi,
   nextVisualStyle,
@@ -84,6 +85,17 @@ test('the action bar reads the shell state', () => {
     actionBarState({ contactsActive: true, cockpitEntryAllowed: true })
       .cockpitEnabled,
     true,
+  );
+});
+
+test('a blocked cockpit tap gets a hint that names the missing step', () => {
+  assert.match(cockpitHint('no-tracked-aircraft'), /Tap an aircraft/);
+  assert.match(cockpitHint('contacts-starting'), /starting/);
+  assert.match(cockpitHint('contacts-inactive'), /not running/);
+  assert.equal(cockpitHint(undefined), cockpitHint('no-tracked-aircraft'));
+  assert.equal(
+    cockpitHint('something-else'),
+    cockpitHint('no-tracked-aircraft'),
   );
 });
 
