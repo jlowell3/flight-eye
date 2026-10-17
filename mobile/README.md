@@ -131,6 +131,10 @@ flutter build apk --release --dart-define=FLIGHT_EYE_URL=https://flighteye.examp
   WebView. The app still runs after "Not now".
 - **External links**: main-frame navigations to another origin, or to
   non-web schemes (`mailto:`, `tel:`), open outside the app.
+- **Remote debugging** (debug builds only): the WebView is inspectable from
+  desktop Chrome at `chrome://inspect` over USB or adb, and scriptable
+  through the DevTools protocol (`adb forward tcp:9222
+  localabstract:webview_devtools_remote_<pid>`, then `http://127.0.0.1:9222/json`).
 
 ## Page contract
 
@@ -195,8 +199,11 @@ screens:
    stays there because the globe's imagery fails on TLS. The back button
    exits (the page has no `flightEyeBack` hook yet).
 
-Everything that needs HTTPS (imagery, feeds, voice) has to be checked on a
-real phone over USB (`adb devices`, then `flutter install`).
+With Avast's shields paused, HTTPS works inside the emulator (verified: an
+Esri imagery tile fetched from the page returned 200), but the globe still
+renders very slowly on the emulator's software GPU, so voice and the full
+map experience are still best checked on a real phone over USB
+(`adb devices`, then `flutter install`).
 
 ## Icons and splash
 

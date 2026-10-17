@@ -90,6 +90,9 @@ class _FlightEyeShellState extends State<FlightEyeShell>
 
     final platform = controller.platform;
     if (platform is AndroidWebViewController) {
+      // Debug builds expose the page to chrome://inspect (and to the
+      // DevTools protocol over adb) so the web side can be debugged in situ.
+      AndroidWebViewController.enableDebugging(kDebugMode);
       // DOM storage is enabled by the Android implementation when the
       // WebView is created; JavaScript is set above.
       platform
